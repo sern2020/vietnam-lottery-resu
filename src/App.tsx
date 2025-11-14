@@ -108,12 +108,14 @@ function App() {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     
+    const dateToFetch = searchDate || new Date()
+    
     try {
       if (activeRegion !== 'north') {
         toast.info('ℹ️ Live data only available for Northern region', {
           description: 'Central and Southern regions use demo data'
         })
-        const newResult = generateMockResult(activeRegion, new Date())
+        const newResult = generateMockResult(activeRegion, dateToFetch)
         const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
         let updatedResults: LotteryResult[]
         
@@ -132,7 +134,7 @@ function App() {
       console.log('🔄 Fetching live lottery results...')
       toast.loading('Fetching live results...', { id: 'fetch-loading' })
       
-      const result = await fetchLotteryResults(activeRegion, new Date())
+      const result = await fetchLotteryResults(activeRegion, dateToFetch)
       
       toast.dismiss('fetch-loading')
       
@@ -149,14 +151,14 @@ function App() {
         
         setResultsForRegion(activeRegion, updatedResults)
         toast.success('✅ Live results fetched successfully!', {
-          description: `Updated results for ${format(new Date(), 'MMM dd, yyyy')}`
+          description: `Updated results for ${format(dateToFetch, 'MMM dd, yyyy')}`
         })
       } else {
         toast.warning('⚠️ Could not fetch live data - all proxies failed', {
           duration: 6000,
           description: 'CORS proxies are rate-limited or blocked. Try again in a few moments, or use demo data.'
         })
-        const newResult = generateMockResult(activeRegion, new Date())
+        const newResult = generateMockResult(activeRegion, dateToFetch)
         const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
         let updatedResults: LotteryResult[]
         
@@ -175,7 +177,7 @@ function App() {
       toast.error('Network error occurred', {
         description: 'Check your connection. Showing demo data instead.'
       })
-      const newResult = generateMockResult(activeRegion, new Date())
+      const newResult = generateMockResult(activeRegion, dateToFetch)
       const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
       let updatedResults: LotteryResult[]
       
