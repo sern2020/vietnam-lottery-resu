@@ -111,6 +111,79 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
     
     const prizes: Array<{ tier: string; numbers: string[] }> = []
     
+    const dateForId = format(date, 'ddMMyyyy')
+    const tableId = `kqngay_${dateForId}_kq`
+    
+    console.log(`🔍 Looking for table with id="${tableId}"`)
+    
+    const table = doc.getElementById(tableId)
+    
+    if (table) {
+      console.log(`✅ Found table with id="${tableId}"`)
+      
+      const prizeMapping = [
+        { tier: 'Special Prize', keywords: ['đặc biệt', 'db', 'giải đặc biệt', 'special'], count: 1, digits: 5 },
+        { tier: 'First Prize', keywords: ['giải nhất', 'nhất', 'giải 1', 'first'], count: 1, digits: 5 },
+        { tier: 'Second Prize', keywords: ['giải nhì', 'nhì', 'giải 2', 'second'], count: 2, digits: 5 },
+        { tier: 'Third Prize', keywords: ['giải ba', 'ba', 'giải 3', 'third'], count: 6, digits: 5 },
+        { tier: 'Fourth Prize', keywords: ['giải tư', 'tư', 'giải 4', 'fourth'], count: 4, digits: 4 },
+        { tier: 'Fifth Prize', keywords: ['giải năm', 'năm', 'giải 5', 'fifth'], count: 6, digits: 4 },
+        { tier: 'Sixth Prize', keywords: ['giải sáu', 'sáu', 'giải 6', 'sixth'], count: 3, digits: 3 },
+        { tier: 'Seventh Prize', keywords: ['giải bảy', 'bảy', 'giải 7', 'seventh'], count: 4, digits: 2 },
+      ]
+      
+      const rows = table.querySelectorAll('tr')
+      
+      rows.forEach(row => {
+        const cells = row.querySelectorAll('td, th')
+        if (cells.length < 2) return
+        
+        const labelCell = cells[0]
+        const labelText = labelCell.textContent?.toLowerCase().trim() || ''
+        
+        for (const mapping of prizeMapping) {
+          const isMatch = mapping.keywords.some(keyword => labelText.includes(keyword))
+          
+          if (isMatch) {
+            const numbers: string[] = []
+            
+            for (let i = 1; i < cells.length; i++) {
+              const text = cells[i].textContent?.trim().replace(/\s+/g, '')
+              if (text && /^\d+$/.test(text) && text.length >= mapping.digits - 1 && text.length <= mapping.digits + 1) {
+                numbers.push(text.padStart(mapping.digits, '0').substring(0, mapping.digits))
+              }
+            }
+            
+            if (numbers.length > 0) {
+              const existingPrize = prizes.find(p => p.tier === mapping.tier)
+              if (existingPrize) {
+                existingPrize.numbers.push(...numbers)
+              } else {
+                prizes.push({
+                  tier: mapping.tier,
+                  numbers: numbers.slice(0, mapping.count),
+                })
+              }
+            }
+          }
+        }
+      })
+      
+      if (prizes.length > 0) {
+        console.log(`✅ Parsed ${prizes.length} prize tiers from table with ${prizes.reduce((sum, p) => sum + p.numbers.length, 0)} total numbers`)
+        
+        return {
+          id: `north-${format(date, 'yyyy-MM-dd')}`,
+          region: 'north',
+          date: format(date, 'yyyy-MM-dd'),
+          drawTime: '18:15',
+          prizes,
+        }
+      }
+    } else {
+      console.log(`⚠️ Table with id="${tableId}" not found, trying fallback class-based parsing...`)
+    }
+    
     const prizeMapping = [
       { tier: 'Special Prize', classNames: ['giaidb', 'giai-db', 'special', 'db'], count: 1, digits: 5 },
       { tier: 'First Prize', classNames: ['giai1', 'giai-1', 'first', 'g1'], count: 1, digits: 5 },
