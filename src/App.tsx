@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { ResultCard } from '@/components/ResultCard'
 import { SearchBar } from '@/components/SearchBar'
 import { HistoricalResults } from '@/components/HistoricalResults'
+import { DateTimePicker } from '@/components/DateTimePicker'
 import { generateMockResult, generateHistoricalResults } from '@/lib/lottery-utils'
 import { fetchLotteryResults } from '@/lib/lottery-api'
 import type { Region, LotteryResult } from '@/lib/types'
@@ -18,8 +19,10 @@ function App() {
   const [activeRegion, setActiveRegion] = useState<Region>('north')
   const [searchNumber, setSearchNumber] = useState('')
   const [selectedDate, setSelectedDate] = useState<Date>()
+  const [searchDate, setSearchDate] = useState<Date>()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
+  const [isFetchingDate, setIsFetchingDate] = useState(false)
   
   const [northResults, setNorthResults] = useKV<LotteryResult[]>('lottery-north-results', [])
   const [centralResults, setCentralResults] = useKV<LotteryResult[]>('lottery-central-results', [])
@@ -194,6 +197,85 @@ function App() {
     setSearchNumber('')
   }
 
+  const handleDateSearch = async (date: Date) => {
+    setSearchDate(date)
+    setIsFetchingDate(true)
+    
+    const formattedDate = format(date, 'yyyy-MM-dd')
+    const existingResult = currentResults.find(r => r.date === formattedDate)
+    
+    if (existingResult) {
+      setSelectedDate(date)
+      toast.success('Date found in history', {
+        description: `Showing results for ${format(date, 'PPP')}`
+      })
+      setIsFetchingDate(false)
+      return
+    }
+    
+    if (activeRegion !== 'north') {
+      toast.info('Live data only available for Northern region', {
+        description: 'Generating demo data for this date'
+      })
+      const newResult = generateMockResult(activeRegion, date)
+      const updatedResults = [newResult, ...currentResults].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      )
+      setResultsForRegion(activeRegion, updatedResults)
+      setSelectedDate(date)
+      setIsFetchingDate(false)
+      return
+    }
+    
+    try {
+      toast.loading('Fetching live results for selected date...', { id: 'date-fetch' })
+      
+      const result = await fetchLotteryResults(activeRegion, date)
+      
+      toast.dismiss('date-fetch')
+      
+      if (result) {
+        const updatedResults = [result, ...currentResults].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+        setResultsForRegion(activeRegion, updatedResults)
+        setSelectedDate(date)
+        toast.success('Live results fetched successfully!', {
+          description: `Results for ${format(date, 'PPP')}`
+        })
+      } else {
+        toast.warning('Could not fetch live data for this date', {
+          description: 'Generating demo data instead'
+        })
+        const newResult = generateMockResult(activeRegion, date)
+        const updatedResults = [newResult, ...currentResults].sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+        setResultsForRegion(activeRegion, updatedResults)
+        setSelectedDate(date)
+      }
+    } catch (error) {
+      console.error('Error fetching date results:', error)
+      toast.dismiss('date-fetch')
+      toast.error('Network error occurred', {
+        description: 'Showing demo data for this date'
+      })
+      const newResult = generateMockResult(activeRegion, date)
+      const updatedResults = [newResult, ...currentResults].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      )
+      setResultsForRegion(activeRegion, updatedResults)
+      setSelectedDate(date)
+    } finally {
+      setIsFetchingDate(false)
+    }
+  }
+
+  const handleHistoricalDateSelect = (date: Date) => {
+    setSelectedDate(date)
+    setSearchNumber('')
+  }
+
   const handleSearch = (value: string) => {
     setSearchNumber(value)
   }
@@ -215,9 +297,18 @@ function App() {
           <SearchBar onSearch={handleSearch} />
         </div>
 
+        <div className="mb-6">
+          <DateTimePicker
+            onDateSelect={handleDateSearch}
+            selectedDate={searchDate}
+            disabled={isFetchingDate || isInitialLoading}
+          />
+        </div>
+
         <Tabs value={activeRegion} onValueChange={(v) => {
           setActiveRegion(v as Region)
           setSelectedDate(undefined)
+          setSearchDate(undefined)
           setSearchNumber('')
         }}>
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -306,7 +397,7 @@ function App() {
             <div className="lg:col-span-1">
               <HistoricalResults
                 results={currentResults}
-                onSelectDate={handleDateSelect}
+                onSelectDate={handleHistoricalDateSelect}
                 selectedDate={selectedDate}
               />
             </div>
