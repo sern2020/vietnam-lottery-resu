@@ -2,9 +2,11 @@ import type { LotteryResult, Region } from './types'
 import { format } from 'date-fns'
 
 const CORS_PROXIES = [
-  { url: 'https://api.allorigins.win/get?url=', type: 'allorigins' },
+  { url: 'https://api.allorigins.win/raw?url=', type: 'allorigins-raw' },
+  { url: 'https://api.allorigins.win/get?url=', type: 'allorigins-json' },
   { url: 'https://corsproxy.io/?', type: 'corsproxy' },
   { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'codetabs' },
+  { url: 'https://thingproxy.freeboard.io/fetch/', type: 'thingproxy' },
 ]
 
 export async function fetchNorthernResults(date?: Date): Promise<LotteryResult | null> {
@@ -21,8 +23,9 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
         method: 'GET',
         headers: {
           'Accept': 'application/json, text/html, */*',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         },
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(15000),
       })
       
       if (!response.ok) {
@@ -30,7 +33,7 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
         continue
       }
       
-      if (proxy.type === 'allorigins') {
+      if (proxy.type === 'allorigins-json') {
         const data = await response.json()
         html = data.contents || ''
       } else {
@@ -45,18 +48,20 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
       const result = parseNorthernHTML(html, targetDate)
       
       if (result && result.prizes.length > 0) {
-        console.log(`Successfully fetched results using ${proxy.type}`)
+        console.log(`✅ Successfully fetched live results using ${proxy.type}`)
         return result
+      } else {
+        console.warn(`Proxy ${proxy.type} returned HTML but parsing failed`)
       }
     } catch (error) {
       if (error instanceof Error) {
-        console.error(`Error with proxy ${proxy.type}:`, error.message)
+        console.error(`❌ Error with proxy ${proxy.type}:`, error.message)
       }
       continue
     }
   }
   
-  console.warn('All CORS proxies failed or returned invalid data')
+  console.warn('⚠️ All CORS proxies failed or returned invalid data')
   return null
 }
 
@@ -68,27 +73,31 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
     const prizes: Array<{ tier: string; numbers: string[] }> = []
     
     const prizeMapping = [
-      { tier: 'Special Prize', className: 'giaidb', count: 1 },
-      { tier: 'First Prize', className: 'giai1', count: 1 },
-      { tier: 'Second Prize', className: 'giai2', count: 2 },
-      { tier: 'Third Prize', className: 'giai3', count: 6 },
-      { tier: 'Fourth Prize', className: 'giai4', count: 4 },
-      { tier: 'Fifth Prize', className: 'giai5', count: 6 },
-      { tier: 'Sixth Prize', className: 'giai6', count: 3 },
-      { tier: 'Seventh Prize', className: 'giai7', count: 4 },
+      { tier: 'Special Prize', classNames: ['giaidb', 'giai-db', 'special'], count: 1, digits: 5 },
+      { tier: 'First Prize', classNames: ['giai1', 'giai-1', 'first'], count: 1, digits: 5 },
+      { tier: 'Second Prize', classNames: ['giai2', 'giai-2', 'second'], count: 2, digits: 5 },
+      { tier: 'Third Prize', classNames: ['giai3', 'giai-3', 'third'], count: 6, digits: 5 },
+      { tier: 'Fourth Prize', classNames: ['giai4', 'giai-4', 'fourth'], count: 4, digits: 4 },
+      { tier: 'Fifth Prize', classNames: ['giai5', 'giai-5', 'fifth'], count: 6, digits: 4 },
+      { tier: 'Sixth Prize', classNames: ['giai6', 'giai-6', 'sixth'], count: 3, digits: 3 },
+      { tier: 'Seventh Prize', classNames: ['giai7', 'giai-7', 'seventh'], count: 4, digits: 2 },
     ]
     
     for (const mapping of prizeMapping) {
       const numbers: string[] = []
       
-      const row = doc.querySelector(`.${mapping.className}`)
+      let row: Element | null = null
+      for (const className of mapping.classNames) {
+        row = doc.querySelector(`.${className}`)
+        if (row) break
+      }
       
       if (row) {
-        const numberElements = row.querySelectorAll('td')
+        const numberElements = row.querySelectorAll('td, div, span')
         
-        numberElements.forEach(td => {
-          const text = td.textContent?.trim()
-          if (text && /^\d+$/.test(text)) {
+        numberElements.forEach(el => {
+          const text = el.textContent?.trim()
+          if (text && /^\d+$/.test(text) && text.length === mapping.digits) {
             numbers.push(text)
           }
         })
@@ -103,8 +112,12 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
     }
     
     if (prizes.length === 0) {
+      console.warn('No prizes found in HTML - parsing failed')
+      console.log('HTML preview:', html.substring(0, 500))
       return null
     }
+    
+    console.log(`Parsed ${prizes.length} prize tiers from HTML`)
     
     return {
       id: `north-${format(date, 'yyyy-MM-dd')}`,

@@ -30,20 +30,28 @@ function App() {
       setIsInitialLoading(true)
       
       if (!northResults || northResults.length === 0) {
+        console.log('🔄 Attempting to fetch live lottery data...')
         try {
           const todayResult = await fetchLotteryResults('north', new Date())
           if (todayResult) {
             const historicalData = generateHistoricalResults('north', 29)
             setNorthResults([todayResult, ...historicalData])
-            toast.success('Live Northern lottery results loaded!')
+            toast.success('✅ Live Northern lottery results loaded!', { duration: 4000 })
           } else {
+            console.log('⚠️ Live data unavailable, loading demo data')
             setNorthResults(generateHistoricalResults('north', 30))
-            toast.info('Using demo data - live data currently unavailable', { duration: 3000 })
+            toast.warning('Live data temporarily unavailable. Showing demo data instead.', { 
+              duration: 5000,
+              description: 'CORS proxies may be rate-limited. Click "Fetch Live Results" to retry.'
+            })
           }
         } catch (error) {
-          console.error('Error initializing Northern results:', error)
+          console.error('❌ Error initializing Northern results:', error)
           setNorthResults(generateHistoricalResults('north', 30))
-          toast.info('Using demo data - network error occurred')
+          toast.error('Network error occurred. Showing demo data.', {
+            duration: 4000,
+            description: 'Check your internet connection and try refreshing.'
+          })
         }
       }
       if (!centralResults || centralResults.length === 0) {
@@ -94,7 +102,9 @@ function App() {
     
     try {
       if (activeRegion !== 'north') {
-        toast.info('Live data only available for Northern region')
+        toast.info('ℹ️ Live data only available for Northern region', {
+          description: 'Central and Southern regions use demo data'
+        })
         const newResult = generateMockResult(activeRegion, new Date())
         const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
         let updatedResults: LotteryResult[]
@@ -111,6 +121,7 @@ function App() {
         return
       }
       
+      console.log('🔄 Fetching live lottery results...')
       const result = await fetchLotteryResults(activeRegion, new Date())
       
       if (result) {
@@ -125,10 +136,13 @@ function App() {
         }
         
         setResultsForRegion(activeRegion, updatedResults)
-        toast.success('Live results fetched successfully!')
+        toast.success('✅ Live results fetched successfully!', {
+          description: `Updated results for ${format(new Date(), 'MMM dd, yyyy')}`
+        })
       } else {
-        toast.warning('Could not fetch live data - CORS proxies unavailable. Showing demo data instead.', {
-          duration: 4000,
+        toast.warning('⚠️ Could not fetch live data - all CORS proxies unavailable', {
+          duration: 5000,
+          description: 'The proxies may be rate-limited or blocked. Showing refreshed demo data instead.'
         })
         const newResult = generateMockResult(activeRegion, new Date())
         const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
@@ -144,8 +158,10 @@ function App() {
         setResultsForRegion(activeRegion, updatedResults)
       }
     } catch (error) {
-      console.error('Error refreshing results:', error)
-      toast.error('Network error occurred. Showing demo data instead.')
+      console.error('❌ Error refreshing results:', error)
+      toast.error('Network error occurred', {
+        description: 'Check your connection. Showing demo data instead.'
+      })
       const newResult = generateMockResult(activeRegion, new Date())
       const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
       let updatedResults: LotteryResult[]
@@ -288,9 +304,10 @@ function App() {
         </Tabs>
 
         <footer className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          <p>Northern results attempt to fetch from xoso.com.vn via CORS proxy | Central & Southern regions use demo data</p>
-          <p className="mt-1 text-xs">Live data may be unavailable due to CORS proxy limitations - demo data shown as fallback</p>
-          <p className="mt-1 text-xs">Results are for reference only</p>
+          <p className="font-medium">Northern results attempt live data via multiple CORS proxies</p>
+          <p className="mt-2 text-xs">⚠️ Free CORS proxies may be rate-limited or unavailable - demo data shown as fallback</p>
+          <p className="mt-1 text-xs">Central & Southern regions currently use demo data only</p>
+          <p className="mt-2 text-xs opacity-75">Results are for reference only • Not affiliated with official lottery organizations</p>
         </footer>
       </div>
     </div>
