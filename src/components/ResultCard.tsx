@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CalendarBlank, Clock } from '@phosphor-icons/react'
-import { formatVietnameseDate } from '@/lib/lottery-utils'
+import { formatEnglishDate } from '@/lib/lottery-utils'
 import { PrizeDisplay } from './PrizeDisplay'
 import type { LotteryResult } from '@/lib/types'
 import { REGIONS } from '@/lib/types'
@@ -19,16 +19,16 @@ export function ResultCard({ result, highlightNumbers = [] }: ResultCardProps) {
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="mb-2 text-2xl font-bold text-foreground">
-              Xổ Số {region.name}
+              {region.nameEn} Region
             </CardTitle>
             <div className="space-y-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <CalendarBlank size={16} />
-                <span className="capitalize">{formatVietnameseDate(result.date)}</span>
+                <span className="capitalize">{formatEnglishDate(result.date)}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock size={16} />
-                <span>Kết quả xổ lúc {result.drawTime}</span>
+                <span>Draw time: {result.drawTime}</span>
               </div>
             </div>
           </div>

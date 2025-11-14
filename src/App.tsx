@@ -74,7 +74,7 @@ function App() {
       setResultsForRegion(activeRegion, updatedResults)
       
       setIsRefreshing(false)
-      toast.success('Đã cập nhật kết quả mới nhất!')
+      toast.success('Latest results updated!')
     }, 1000)
   }
 
@@ -93,10 +93,10 @@ function App() {
       <div className="container mx-auto px-4 py-8 md:px-6 md:py-12">
         <header className="mb-8 text-center">
           <h1 className="mb-2 text-4xl font-bold tracking-tight text-foreground md:text-5xl">
-            Xổ Số Việt Nam
+            Vietnam Lottery Results
           </h1>
           <p className="text-lg text-muted-foreground">
-            Vietnam Lottery Results - Live Updates
+            Live Updates & Historical Results
           </p>
         </header>
 
@@ -113,18 +113,18 @@ function App() {
             <TabsList className="grid w-full grid-cols-3 md:w-auto">
               <TabsTrigger value="north" className="gap-2">
                 <MapPin size={16} />
-                <span className="hidden sm:inline">{REGIONS.north.name}</span>
-                <span className="sm:hidden">Bắc</span>
+                <span className="hidden sm:inline">{REGIONS.north.nameEn}</span>
+                <span className="sm:hidden">North</span>
               </TabsTrigger>
               <TabsTrigger value="central" className="gap-2">
                 <MapPin size={16} />
-                <span className="hidden sm:inline">{REGIONS.central.name}</span>
-                <span className="sm:hidden">Trung</span>
+                <span className="hidden sm:inline">{REGIONS.central.nameEn}</span>
+                <span className="sm:hidden">Central</span>
               </TabsTrigger>
               <TabsTrigger value="south" className="gap-2">
                 <MapPin size={16} />
-                <span className="hidden sm:inline">{REGIONS.south.name}</span>
-                <span className="sm:hidden">Nam</span>
+                <span className="hidden sm:inline">{REGIONS.south.nameEn}</span>
+                <span className="sm:hidden">South</span>
               </TabsTrigger>
             </TabsList>
 
@@ -134,7 +134,7 @@ function App() {
               className="gap-2"
             >
               <ArrowClockwise size={18} className={isRefreshing ? 'animate-spin' : ''} />
-              Làm mới
+              Refresh
             </Button>
           </div>
 
@@ -145,7 +145,7 @@ function App() {
                   <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
-                    <p className="text-muted-foreground">Không có kết quả cho ngày này</p>
+                    <p className="text-muted-foreground">No results available for this date</p>
                   </div>
                 )}
               </TabsContent>
@@ -155,7 +155,7 @@ function App() {
                   <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
-                    <p className="text-muted-foreground">Không có kết quả cho ngày này</p>
+                    <p className="text-muted-foreground">No results available for this date</p>
                   </div>
                 )}
               </TabsContent>
@@ -165,7 +165,7 @@ function App() {
                   <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
-                    <p className="text-muted-foreground">Không có kết quả cho ngày này</p>
+                    <p className="text-muted-foreground">No results available for this date</p>
                   </div>
                 )}
               </TabsContent>
@@ -182,8 +182,7 @@ function App() {
         </Tabs>
 
         <footer className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          <p>Kết quả chỉ mang tính chất tham khảo</p>
-          <p className="mt-1">Results are for reference only - Demo Application</p>
+          <p>Results are for reference only - Demo Application</p>
         </footer>
       </div>
     </div>

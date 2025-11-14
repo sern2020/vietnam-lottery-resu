@@ -32,7 +32,7 @@ export function HistoricalResults({ results, onSelectDate, selectedDate }: Histo
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           <CalendarBlank size={24} />
-          Kết Quả Lịch Sử
+          Historical Results
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -49,7 +49,7 @@ export function HistoricalResults({ results, onSelectDate, selectedDate }: Histo
               {selectedDate ? (
                 format(selectedDate, 'PPP')
               ) : (
-                <span>Chọn ngày xem kết quả</span>
+                <span>Select a date to view results</span>
               )}
             </Button>
           </PopoverTrigger>
@@ -65,7 +65,7 @@ export function HistoricalResults({ results, onSelectDate, selectedDate }: Histo
         </Popover>
 
         <div className="mt-4 space-y-2">
-          <p className="text-sm font-medium text-muted-foreground">Kết quả gần đây:</p>
+          <p className="text-sm font-medium text-muted-foreground">Recent results:</p>
           <div className="max-h-64 space-y-2 overflow-y-auto">
             {results.slice(0, 10).map((result) => (
               <button

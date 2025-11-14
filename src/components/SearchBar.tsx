@@ -33,7 +33,7 @@ export function SearchBar({ onSearch, className }: SearchBarProps) {
         <Input
           type="text"
           inputMode="numeric"
-          placeholder="Nhập số cần tra (Enter number to check)"
+          placeholder="Enter number to check"
           value={value}
           onChange={handleChange}
           className="lottery-number h-14 pl-12 pr-12 text-center text-xl tracking-wider"
@@ -51,7 +51,7 @@ export function SearchBar({ onSearch, className }: SearchBarProps) {
       </div>
       {value && (
         <p className="mt-2 text-center text-sm text-muted-foreground">
-          Đang tìm số: <span className="lottery-number font-bold text-foreground">{value}</span>
+          Searching for: <span className="lottery-number font-bold text-foreground">{value}</span>
         </p>
       )}
     </div>

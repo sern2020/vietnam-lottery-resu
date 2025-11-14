@@ -47,6 +47,18 @@ export function formatVietnameseDate(dateStr: string): string {
   return `${weekday}, ngày ${day} tháng ${month} năm ${year}`
 }
 
+export function formatEnglishDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  const day = date.getDate()
+  const month = months[date.getMonth()]
+  const year = date.getFullYear()
+  const weekday = weekdays[date.getDay()]
+  
+  return `${weekday}, ${month} ${day}, ${year}`
+}
+
 export function formatShortDate(dateStr: string): string {
   const date = new Date(dateStr)
   return format(date, 'dd/MM/yyyy')
