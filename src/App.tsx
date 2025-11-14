@@ -30,14 +30,20 @@ function App() {
       setIsInitialLoading(true)
       
       if (!northResults || northResults.length === 0) {
-        const todayResult = await fetchLotteryResults('north', new Date())
-        if (todayResult) {
-          const historicalData = generateHistoricalResults('north', 29)
-          setNorthResults([todayResult, ...historicalData])
-          toast.success('Live Northern lottery results loaded!')
-        } else {
+        try {
+          const todayResult = await fetchLotteryResults('north', new Date())
+          if (todayResult) {
+            const historicalData = generateHistoricalResults('north', 29)
+            setNorthResults([todayResult, ...historicalData])
+            toast.success('Live Northern lottery results loaded!')
+          } else {
+            setNorthResults(generateHistoricalResults('north', 30))
+            toast.info('Using demo data - live data currently unavailable', { duration: 3000 })
+          }
+        } catch (error) {
+          console.error('Error initializing Northern results:', error)
           setNorthResults(generateHistoricalResults('north', 30))
-          toast.info('Using demo data for Northern region')
+          toast.info('Using demo data - network error occurred')
         }
       }
       if (!centralResults || centralResults.length === 0) {
@@ -87,6 +93,24 @@ function App() {
     setIsRefreshing(true)
     
     try {
+      if (activeRegion !== 'north') {
+        toast.info('Live data only available for Northern region')
+        const newResult = generateMockResult(activeRegion, new Date())
+        const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
+        let updatedResults: LotteryResult[]
+        
+        if (existingIndex >= 0) {
+          updatedResults = [...currentResults]
+          updatedResults[existingIndex] = newResult
+        } else {
+          updatedResults = [newResult, ...currentResults.slice(0, 29)]
+        }
+        
+        setResultsForRegion(activeRegion, updatedResults)
+        setIsRefreshing(false)
+        return
+      }
+      
       const result = await fetchLotteryResults(activeRegion, new Date())
       
       if (result) {
@@ -101,16 +125,39 @@ function App() {
         }
         
         setResultsForRegion(activeRegion, updatedResults)
-        toast.success('Latest results updated!')
+        toast.success('Live results fetched successfully!')
       } else {
-        toast.error('Unable to fetch latest results. Using mock data.')
+        toast.warning('Could not fetch live data - CORS proxies unavailable. Showing demo data instead.', {
+          duration: 4000,
+        })
         const newResult = generateMockResult(activeRegion, new Date())
-        const updatedResults = [newResult, ...currentResults.slice(0, 29)]
+        const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
+        let updatedResults: LotteryResult[]
+        
+        if (existingIndex >= 0) {
+          updatedResults = [...currentResults]
+          updatedResults[existingIndex] = newResult
+        } else {
+          updatedResults = [newResult, ...currentResults.slice(0, 29)]
+        }
+        
         setResultsForRegion(activeRegion, updatedResults)
       }
     } catch (error) {
       console.error('Error refreshing results:', error)
-      toast.error('Failed to fetch results. Please try again.')
+      toast.error('Network error occurred. Showing demo data instead.')
+      const newResult = generateMockResult(activeRegion, new Date())
+      const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
+      let updatedResults: LotteryResult[]
+      
+      if (existingIndex >= 0) {
+        updatedResults = [...currentResults]
+        updatedResults[existingIndex] = newResult
+      } else {
+        updatedResults = [newResult, ...currentResults.slice(0, 29)]
+      }
+      
+      setResultsForRegion(activeRegion, updatedResults)
     } finally {
       setIsRefreshing(false)
     }
@@ -241,7 +288,8 @@ function App() {
         </Tabs>
 
         <footer className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          <p>Northern results sourced from xoso.com.vn | Central & Southern regions use demo data</p>
+          <p>Northern results attempt to fetch from xoso.com.vn via CORS proxy | Central & Southern regions use demo data</p>
+          <p className="mt-1 text-xs">Live data may be unavailable due to CORS proxy limitations - demo data shown as fallback</p>
           <p className="mt-1 text-xs">Results are for reference only</p>
         </footer>
       </div>

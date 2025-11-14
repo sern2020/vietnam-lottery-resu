@@ -2,8 +2,9 @@ import type { LotteryResult, Region } from './types'
 import { format } from 'date-fns'
 
 const CORS_PROXIES = [
-  'https://api.allorigins.win/get?url=',
-  'https://corsproxy.io/?',
+  { url: 'https://api.allorigins.win/get?url=', type: 'allorigins' },
+  { url: 'https://corsproxy.io/?', type: 'corsproxy' },
+  { url: 'https://api.codetabs.com/v1/proxy?quest=', type: 'codetabs' },
 ]
 
 export async function fetchNorthernResults(date?: Date): Promise<LotteryResult | null> {
@@ -13,42 +14,49 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
   
   for (const proxy of CORS_PROXIES) {
     try {
-      let url: string
       let html: string
+      const proxyUrl = `${proxy.url}${encodeURIComponent(baseUrl)}`
       
-      if (proxy.includes('allorigins')) {
-        url = `${proxy}${encodeURIComponent(baseUrl)}`
-        const response = await fetch(url)
-        
-        if (!response.ok) {
-          continue
-        }
-        
+      const response = await fetch(proxyUrl, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json, text/html, */*',
+        },
+        signal: AbortSignal.timeout(10000),
+      })
+      
+      if (!response.ok) {
+        console.warn(`Proxy ${proxy.type} returned status ${response.status}`)
+        continue
+      }
+      
+      if (proxy.type === 'allorigins') {
         const data = await response.json()
-        html = data.contents
+        html = data.contents || ''
       } else {
-        url = `${proxy}${encodeURIComponent(baseUrl)}`
-        const response = await fetch(url)
-        
-        if (!response.ok) {
-          continue
-        }
-        
         html = await response.text()
+      }
+      
+      if (!html || html.length < 100) {
+        console.warn(`Proxy ${proxy.type} returned empty or invalid HTML`)
+        continue
       }
       
       const result = parseNorthernHTML(html, targetDate)
       
       if (result && result.prizes.length > 0) {
+        console.log(`Successfully fetched results using ${proxy.type}`)
         return result
       }
     } catch (error) {
-      console.error(`Error with proxy ${proxy}:`, error)
+      if (error instanceof Error) {
+        console.error(`Error with proxy ${proxy.type}:`, error.message)
+      }
       continue
     }
   }
   
-  console.warn('All CORS proxies failed, falling back to mock data')
+  console.warn('All CORS proxies failed or returned invalid data')
   return null
 }
 
