@@ -1,20 +1,98 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { CalendarBlank, Clock } from '@phosphor-icons/react'
+import { Button } from '@/components/ui/button'
+import { CalendarBlank, Clock, Bell, Printer } from '@phosphor-icons/react'
 import { formatEnglishDate } from '@/lib/lottery-utils'
 import { PrizeDisplay } from './PrizeDisplay'
 import type { LotteryResult } from '@/lib/types'
 import { REGIONS } from '@/lib/types'
+import { useRef, useEffect } from 'react'
 
 interface ResultCardProps {
   result: LotteryResult
   highlightNumbers?: string[]
+  showSpecialPrizeAlert?: boolean
 }
 
-export function ResultCard({ result, highlightNumbers = [] }: ResultCardProps) {
+export function ResultCard({ result, highlightNumbers = [], showSpecialPrizeAlert = false }: ResultCardProps) {
   const region = REGIONS[result.region]
+  const cardRef = useRef<HTMLDivElement>(null)
+  const hasShownAlert = useRef(false)
+  
+  const specialPrize = result.prizes.find(p => p.tier === 'Special Prize')
+  const specialPrizeNumber = specialPrize?.numbers[0] || 'N/A'
+  
+  useEffect(() => {
+    if (showSpecialPrizeAlert && specialPrize && !hasShownAlert.current) {
+      hasShownAlert.current = true
+      alert(`🎯 Special Prize (DB - Row 1):\n\n${specialPrizeNumber}\n\nRegion: ${region.nameEn}\nDate: ${formatEnglishDate(result.date)}`)
+    }
+  }, [showSpecialPrizeAlert, specialPrize, specialPrizeNumber, region.nameEn, result.date])
+  
+  const handlePrintHTML = () => {
+    if (cardRef.current) {
+      const htmlContent = cardRef.current.innerHTML
+      const fullHTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${region.nameEn} Lottery Results - ${formatEnglishDate(result.date)}</title>
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #fafafa;
+    }
+    .print-info {
+      margin-bottom: 20px;
+      padding: 15px;
+      background: white;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+    }
+    h1 { margin: 0 0 10px 0; color: #1a1a1a; }
+    p { margin: 5px 0; color: #666; }
+    @media print {
+      body { background: white; }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-info">
+    <h1>${region.nameEn} Region Lottery Results</h1>
+    <p><strong>Date:</strong> ${formatEnglishDate(result.date)}</p>
+    <p><strong>Draw Time:</strong> ${result.drawTime}</p>
+    <p><strong>Special Prize (DB):</strong> ${specialPrizeNumber}</p>
+    <p><strong>Printed:</strong> ${new Date().toLocaleString()}</p>
+  </div>
+  ${htmlContent}
+</body>
+</html>`
+      
+      const printWindow = window.open('', '_blank')
+      if (printWindow) {
+        printWindow.document.write(fullHTML)
+        printWindow.document.close()
+        printWindow.focus()
+        setTimeout(() => {
+          printWindow.print()
+        }, 250)
+      }
+      
+      console.log('=== HTML CONTENT ===')
+      console.log(fullHTML)
+      console.log('=== END HTML ===')
+    }
+  }
+  
+  const handleShowAlert = () => {
+    alert(`🎯 Special Prize (DB - Row 1):\n\n${specialPrizeNumber}\n\nRegion: ${region.nameEn}\nDate: ${formatEnglishDate(result.date)}\nDraw Time: ${result.drawTime}`)
+  }
   
   return (
-    <Card className="overflow-hidden border-gold/20">
+    <Card className="overflow-hidden border-gold/20" ref={cardRef}>
       <CardHeader className="border-b border-border bg-gradient-to-r from-muted/50 to-transparent pb-4">
         <div className="flex items-start justify-between">
           <div>
@@ -31,6 +109,26 @@ export function ResultCard({ result, highlightNumbers = [] }: ResultCardProps) {
                 <span>Draw time: {result.drawTime}</span>
               </div>
             </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShowAlert}
+              className="gap-2"
+            >
+              <Bell size={16} />
+              <span className="hidden sm:inline">Special Prize</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePrintHTML}
+              className="gap-2"
+            >
+              <Printer size={16} />
+              <span className="hidden sm:inline">Print HTML</span>
+            </Button>
           </div>
         </div>
       </CardHeader>

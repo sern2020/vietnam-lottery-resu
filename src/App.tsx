@@ -23,6 +23,7 @@ function App() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isFetchingDate, setIsFetchingDate] = useState(false)
+  const [showAlert, setShowAlert] = useState(false)
   
   const [northResults, setNorthResults] = useKV<LotteryResult[]>('lottery-north-results', [])
   const [centralResults, setCentralResults] = useKV<LotteryResult[]>('lottery-central-results', [])
@@ -107,6 +108,7 @@ function App() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
+    setShowAlert(false)
     
     const dateToFetch = searchDate || new Date()
     
@@ -150,6 +152,7 @@ function App() {
         }
         
         setResultsForRegion(activeRegion, updatedResults)
+        setShowAlert(true)
         toast.success('✅ Live results fetched successfully!', {
           description: `Updated results for ${format(dateToFetch, 'MMM dd, yyyy')}`
         })
@@ -197,11 +200,13 @@ function App() {
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date)
     setSearchNumber('')
+    setShowAlert(false)
   }
 
   const handleDateSearch = async (date: Date) => {
     setSearchDate(date)
     setIsFetchingDate(true)
+    setShowAlert(false)
     
     const formattedDate = format(date, 'yyyy-MM-dd')
     const existingResult = currentResults.find(r => r.date === formattedDate)
@@ -242,6 +247,7 @@ function App() {
         )
         setResultsForRegion(activeRegion, updatedResults)
         setSelectedDate(date)
+        setShowAlert(true)
         toast.success('Live results fetched successfully!', {
           description: `Results for ${format(date, 'PPP')}`
         })
@@ -276,6 +282,7 @@ function App() {
   const handleHistoricalDateSelect = (date: Date) => {
     setSelectedDate(date)
     setSearchNumber('')
+    setShowAlert(false)
   }
 
   const handleSearch = (value: string) => {
@@ -312,6 +319,7 @@ function App() {
           setSelectedDate(undefined)
           setSearchDate(undefined)
           setSearchNumber('')
+          setShowAlert(false)
         }}>
           <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <TabsList className="grid w-full grid-cols-3 md:w-auto">
@@ -353,7 +361,7 @@ function App() {
                     <p className="text-muted-foreground">Loading latest lottery results...</p>
                   </div>
                 ) : displayResult ? (
-                  <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
+                  <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} showSpecialPrizeAlert={showAlert} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
                     <p className="text-muted-foreground">No results available for this date</p>
@@ -370,7 +378,7 @@ function App() {
                     <p className="text-muted-foreground">Loading latest lottery results...</p>
                   </div>
                 ) : displayResult ? (
-                  <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
+                  <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} showSpecialPrizeAlert={showAlert} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
                     <p className="text-muted-foreground">No results available for this date</p>
@@ -387,7 +395,7 @@ function App() {
                     <p className="text-muted-foreground">Loading latest lottery results...</p>
                   </div>
                 ) : displayResult ? (
-                  <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
+                  <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} showSpecialPrizeAlert={showAlert} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
                     <p className="text-muted-foreground">No results available for this date</p>
