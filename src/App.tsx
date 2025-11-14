@@ -9,6 +9,7 @@ import { ResultCard } from '@/components/ResultCard'
 import { SearchBar } from '@/components/SearchBar'
 import { HistoricalResults } from '@/components/HistoricalResults'
 import { generateMockResult, generateHistoricalResults } from '@/lib/lottery-utils'
+import { fetchLotteryResults } from '@/lib/lottery-api'
 import type { Region, LotteryResult } from '@/lib/types'
 import { REGIONS } from '@/lib/types'
 import { format } from 'date-fns'
@@ -18,21 +19,38 @@ function App() {
   const [searchNumber, setSearchNumber] = useState('')
   const [selectedDate, setSelectedDate] = useState<Date>()
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isInitialLoading, setIsInitialLoading] = useState(true)
   
   const [northResults, setNorthResults] = useKV<LotteryResult[]>('lottery-north-results', [])
   const [centralResults, setCentralResults] = useKV<LotteryResult[]>('lottery-central-results', [])
   const [southResults, setSouthResults] = useKV<LotteryResult[]>('lottery-south-results', [])
 
   useEffect(() => {
-    if (!northResults || northResults.length === 0) {
-      setNorthResults(generateHistoricalResults('north', 30))
+    const initializeResults = async () => {
+      setIsInitialLoading(true)
+      
+      if (!northResults || northResults.length === 0) {
+        const todayResult = await fetchLotteryResults('north', new Date())
+        if (todayResult) {
+          const historicalData = generateHistoricalResults('north', 29)
+          setNorthResults([todayResult, ...historicalData])
+          toast.success('Live Northern lottery results loaded!')
+        } else {
+          setNorthResults(generateHistoricalResults('north', 30))
+          toast.info('Using demo data for Northern region')
+        }
+      }
+      if (!centralResults || centralResults.length === 0) {
+        setCentralResults(generateHistoricalResults('central', 30))
+      }
+      if (!southResults || southResults.length === 0) {
+        setSouthResults(generateHistoricalResults('south', 30))
+      }
+      
+      setIsInitialLoading(false)
     }
-    if (!centralResults || centralResults.length === 0) {
-      setCentralResults(generateHistoricalResults('central', 30))
-    }
-    if (!southResults || southResults.length === 0) {
-      setSouthResults(generateHistoricalResults('south', 30))
-    }
+    
+    initializeResults()
   }, [])
 
   const getResultsForRegion = (region: Region): LotteryResult[] => {
@@ -68,14 +86,34 @@ function App() {
   const handleRefresh = async () => {
     setIsRefreshing(true)
     
-    setTimeout(() => {
-      const newResult = generateMockResult(activeRegion, new Date())
-      const updatedResults = [newResult, ...currentResults.slice(0, 29)]
-      setResultsForRegion(activeRegion, updatedResults)
+    try {
+      const result = await fetchLotteryResults(activeRegion, new Date())
       
+      if (result) {
+        const existingIndex = currentResults.findIndex(r => r.date === result.date)
+        let updatedResults: LotteryResult[]
+        
+        if (existingIndex >= 0) {
+          updatedResults = [...currentResults]
+          updatedResults[existingIndex] = result
+        } else {
+          updatedResults = [result, ...currentResults.slice(0, 29)]
+        }
+        
+        setResultsForRegion(activeRegion, updatedResults)
+        toast.success('Latest results updated!')
+      } else {
+        toast.error('Unable to fetch latest results. Using mock data.')
+        const newResult = generateMockResult(activeRegion, new Date())
+        const updatedResults = [newResult, ...currentResults.slice(0, 29)]
+        setResultsForRegion(activeRegion, updatedResults)
+      }
+    } catch (error) {
+      console.error('Error refreshing results:', error)
+      toast.error('Failed to fetch results. Please try again.')
+    } finally {
       setIsRefreshing(false)
-      toast.success('Latest results updated!')
-    }, 1000)
+    }
   }
 
   const handleDateSelect = (date: Date) => {
@@ -134,14 +172,21 @@ function App() {
               className="gap-2"
             >
               <ArrowClockwise size={18} className={isRefreshing ? 'animate-spin' : ''} />
-              Refresh
+              {activeRegion === 'north' ? 'Fetch Live Results' : 'Refresh'}
             </Button>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <TabsContent value="north" className="mt-0">
-                {displayResult ? (
+                {isInitialLoading ? (
+                  <div className="rounded-lg border border-border p-12 text-center">
+                    <div className="mb-4 flex justify-center">
+                      <ArrowClockwise size={32} className="animate-spin text-primary" />
+                    </div>
+                    <p className="text-muted-foreground">Loading latest lottery results...</p>
+                  </div>
+                ) : displayResult ? (
                   <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
@@ -151,7 +196,14 @@ function App() {
               </TabsContent>
 
               <TabsContent value="central" className="mt-0">
-                {displayResult ? (
+                {isInitialLoading ? (
+                  <div className="rounded-lg border border-border p-12 text-center">
+                    <div className="mb-4 flex justify-center">
+                      <ArrowClockwise size={32} className="animate-spin text-primary" />
+                    </div>
+                    <p className="text-muted-foreground">Loading latest lottery results...</p>
+                  </div>
+                ) : displayResult ? (
                   <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
@@ -161,7 +213,14 @@ function App() {
               </TabsContent>
 
               <TabsContent value="south" className="mt-0">
-                {displayResult ? (
+                {isInitialLoading ? (
+                  <div className="rounded-lg border border-border p-12 text-center">
+                    <div className="mb-4 flex justify-center">
+                      <ArrowClockwise size={32} className="animate-spin text-primary" />
+                    </div>
+                    <p className="text-muted-foreground">Loading latest lottery results...</p>
+                  </div>
+                ) : displayResult ? (
                   <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
@@ -182,7 +241,8 @@ function App() {
         </Tabs>
 
         <footer className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          <p>Results are for reference only - Demo Application</p>
+          <p>Northern results sourced from xoso.com.vn | Central & Southern regions use demo data</p>
+          <p className="mt-1 text-xs">Results are for reference only</p>
         </footer>
       </div>
     </div>

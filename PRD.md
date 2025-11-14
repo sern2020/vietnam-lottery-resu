@@ -13,11 +13,11 @@ A comprehensive Vietnam Lottery Result Viewer that displays lottery results acro
 ## Essential Features
 
 ### Live Result Display
-- **Functionality**: Shows the most recent lottery results for all active game types (Northern, Central, Southern regions)
-- **Purpose**: Primary user need - checking current winning numbers quickly
+- **Functionality**: Shows the most recent lottery results for all active game types with real-time data fetching from xoso.com.vn for Northern region
+- **Purpose**: Primary user need - checking current winning numbers quickly with real, verified data
 - **Trigger**: Page load or manual refresh
-- **Progression**: App loads → Latest results appear prominently → Each region/game type clearly labeled → Numbers displayed in traditional lottery format
-- **Success criteria**: Results visible within 1 second, all numbers clearly readable, draw date/time visible
+- **Progression**: App loads → Fetches latest results from xoso.com.vn for Northern region → Latest results appear prominently → Each region/game type clearly labeled → Numbers displayed in traditional lottery format
+- **Success criteria**: Northern results fetched from live source, results visible within 2 seconds, all numbers clearly readable, draw date/time visible
 
 ### Multi-Region Support
 - **Functionality**: Displays results for three main Vietnamese lottery regions (Miền Bắc, Miền Trung, Miền Nam)
@@ -51,10 +51,12 @@ A comprehensive Vietnam Lottery Result Viewer that displays lottery results acro
 
 - **No Results Available**: Display friendly empty state with last update timestamp and refresh option
 - **Invalid/Future Dates**: Show informative message when user selects date with no results yet
-- **Slow/Failed Updates**: Graceful loading states, cached previous results remain visible, retry mechanism
+- **Slow/Failed Updates**: Graceful loading states with spinner, cached previous results remain visible, retry mechanism with multiple CORS proxies
+- **CORS/Network Errors**: Fallback to demo data when xoso.com.vn cannot be reached, with clear user notification
 - **Number Format Errors**: Accept various input formats (with/without spaces, 2-6 digits), normalize automatically
 - **Multiple Matches**: When searched number appears in multiple prize tiers, show all matches clearly ranked
 - **Regional Variations**: Handle different prize structures per region without confusion
+- **HTML Parsing Failures**: Multiple selector strategies for robust data extraction from xoso.com.vn
 
 ## Design Direction
 
