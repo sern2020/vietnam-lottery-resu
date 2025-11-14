@@ -31,8 +31,12 @@ function App() {
       
       if (!northResults || northResults.length === 0) {
         console.log('🔄 Attempting to fetch live lottery data...')
+        toast.loading('Loading latest lottery results...', { id: 'initial-load' })
+        
         try {
           const todayResult = await fetchLotteryResults('north', new Date())
+          toast.dismiss('initial-load')
+          
           if (todayResult) {
             const historicalData = generateHistoricalResults('north', 29)
             setNorthResults([todayResult, ...historicalData])
@@ -40,17 +44,18 @@ function App() {
           } else {
             console.log('⚠️ Live data unavailable, loading demo data')
             setNorthResults(generateHistoricalResults('north', 30))
-            toast.warning('Live data temporarily unavailable. Showing demo data instead.', { 
-              duration: 5000,
-              description: 'CORS proxies may be rate-limited. Click "Fetch Live Results" to retry.'
+            toast.warning('Live data temporarily unavailable', { 
+              duration: 6000,
+              description: 'Free CORS proxies are rate-limited. Click "Fetch Live Results" to retry or use demo data.'
             })
           }
         } catch (error) {
           console.error('❌ Error initializing Northern results:', error)
+          toast.dismiss('initial-load')
           setNorthResults(generateHistoricalResults('north', 30))
-          toast.error('Network error occurred. Showing demo data.', {
+          toast.error('Network error occurred', {
             duration: 4000,
-            description: 'Check your internet connection and try refreshing.'
+            description: 'Check your internet connection. Showing demo data.'
           })
         }
       }
@@ -122,7 +127,11 @@ function App() {
       }
       
       console.log('🔄 Fetching live lottery results...')
+      toast.loading('Fetching live results...', { id: 'fetch-loading' })
+      
       const result = await fetchLotteryResults(activeRegion, new Date())
+      
+      toast.dismiss('fetch-loading')
       
       if (result) {
         const existingIndex = currentResults.findIndex(r => r.date === result.date)
@@ -140,9 +149,9 @@ function App() {
           description: `Updated results for ${format(new Date(), 'MMM dd, yyyy')}`
         })
       } else {
-        toast.warning('⚠️ Could not fetch live data - all CORS proxies unavailable', {
-          duration: 5000,
-          description: 'The proxies may be rate-limited or blocked. Showing refreshed demo data instead.'
+        toast.warning('⚠️ Could not fetch live data - all proxies failed', {
+          duration: 6000,
+          description: 'CORS proxies are rate-limited or blocked. Try again in a few moments, or use demo data.'
         })
         const newResult = generateMockResult(activeRegion, new Date())
         const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
@@ -159,6 +168,7 @@ function App() {
       }
     } catch (error) {
       console.error('❌ Error refreshing results:', error)
+      toast.dismiss('fetch-loading')
       toast.error('Network error occurred', {
         description: 'Check your connection. Showing demo data instead.'
       })
@@ -305,8 +315,9 @@ function App() {
 
         <footer className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
           <p className="font-medium">Northern results attempt live data via multiple CORS proxies</p>
-          <p className="mt-2 text-xs">⚠️ Free CORS proxies may be rate-limited or unavailable - demo data shown as fallback</p>
-          <p className="mt-1 text-xs">Central & Southern regions currently use demo data only</p>
+          <p className="mt-2 text-xs">⚠️ Free CORS proxies may be rate-limited or blocked - demo data shown as fallback</p>
+          <p className="mt-1 text-xs">💡 If live fetch fails, wait a few minutes and try again</p>
+          <p className="mt-2 text-xs">Central & Southern regions currently use demo data only</p>
           <p className="mt-2 text-xs opacity-75">Results are for reference only • Not affiliated with official lottery organizations</p>
         </footer>
       </div>
