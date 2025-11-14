@@ -9,8 +9,9 @@ import { ResultCard } from '@/components/ResultCard'
 import { SearchBar } from '@/components/SearchBar'
 import { HistoricalResults } from '@/components/HistoricalResults'
 import { DateTimePicker } from '@/components/DateTimePicker'
+import { DebugDataDisplay } from '@/components/DebugDataDisplay'
 import { generateMockResult, generateHistoricalResults } from '@/lib/lottery-utils'
-import { fetchLotteryResults } from '@/lib/lottery-api'
+import { fetchLotteryResults, getLastRetrievedHTML } from '@/lib/lottery-api'
 import type { Region, LotteryResult } from '@/lib/types'
 import { REGIONS } from '@/lib/types'
 import { format } from 'date-fns'
@@ -24,6 +25,9 @@ function App() {
   const [isInitialLoading, setIsInitialLoading] = useState(true)
   const [isFetchingDate, setIsFetchingDate] = useState(false)
   const [showAlert, setShowAlert] = useState(false)
+  const [debugHTML, setDebugHTML] = useState('')
+  const [debugSource, setDebugSource] = useState('')
+  const [debugTableHTML, setDebugTableHTML] = useState('')
   
   const [northResults, setNorthResults] = useKV<LotteryResult[]>('lottery-north-results', [])
   const [centralResults, setCentralResults] = useKV<LotteryResult[]>('lottery-central-results', [])
@@ -44,6 +48,10 @@ function App() {
           if (todayResult) {
             const historicalData = generateHistoricalResults('north', 29)
             setNorthResults([todayResult, ...historicalData])
+            const { html, source, tableHTML } = getLastRetrievedHTML()
+            setDebugHTML(html)
+            setDebugSource(source)
+            setDebugTableHTML(tableHTML)
             toast.success('✅ Live Northern lottery results loaded!', { duration: 4000 })
           } else {
             console.log('⚠️ Live data unavailable, loading demo data')
@@ -153,6 +161,10 @@ function App() {
         
         setResultsForRegion(activeRegion, updatedResults)
         setShowAlert(true)
+        const { html, source, tableHTML } = getLastRetrievedHTML()
+        setDebugHTML(html)
+        setDebugSource(source)
+        setDebugTableHTML(tableHTML)
         toast.success('✅ Live results fetched successfully!', {
           description: `Updated results for ${format(dateToFetch, 'MMM dd, yyyy')}`
         })
@@ -248,6 +260,10 @@ function App() {
         setResultsForRegion(activeRegion, updatedResults)
         setSelectedDate(date)
         setShowAlert(true)
+        const { html, source, tableHTML } = getLastRetrievedHTML()
+        setDebugHTML(html)
+        setDebugSource(source)
+        setDebugTableHTML(tableHTML)
         toast.success('Live results fetched successfully!', {
           description: `Results for ${format(date, 'PPP')}`
         })
@@ -413,6 +429,24 @@ function App() {
             </div>
           </div>
         </Tabs>
+
+        {debugHTML && (
+          <div className="mt-6">
+            <DebugDataDisplay 
+              data={debugHTML} 
+              title={`Retrieved HTML Data (Source: ${debugSource})`}
+            />
+          </div>
+        )}
+
+        {debugTableHTML && (
+          <div className="mt-6">
+            <DebugDataDisplay 
+              data={debugTableHTML} 
+              title="Table Result HTML (Pretty Formatted)"
+            />
+          </div>
+        )}
 
         <footer className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
           <p className="font-medium">Northern results attempt live data via multiple CORS proxies</p>

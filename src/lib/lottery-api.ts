@@ -11,6 +11,15 @@ const CORS_PROXIES = [
   { url: 'https://api.allorigins.win/get?url=', type: 'allorigins-json', timeout: 12000 },
 ]
 
+// Store the last retrieved HTML data for debugging
+let lastRetrievedHTML: string = ''
+let lastRetrievedSource: string = ''
+let lastTableHTML: string = ''
+
+export function getLastRetrievedHTML(): { html: string; source: string; tableHTML: string } {
+  return { html: lastRetrievedHTML, source: lastRetrievedSource, tableHTML: lastTableHTML }
+}
+
 export async function fetchNorthernResults(date?: Date): Promise<LotteryResult | null> {
   const targetDate = date || new Date()
   const formattedDate = format(targetDate, 'dd-MM-yyyy')
@@ -37,9 +46,13 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
     
     if (directResponse.ok) {
       const html = await directResponse.text()
+      lastRetrievedHTML = html
+      lastRetrievedSource = 'Direct fetch'
+      alert(`✅ Direct fetch successful!\n\nHTML Length: ${html.length} characters\n\nFirst 500 chars:\n${html.substring(0, 500)}...`)
       const result = parseNorthernHTML(html, targetDate)
       if (result && result.prizes.length > 0) {
         console.log('✅ Direct fetch successful!')
+        alert(`✅ Parsed Results:\n\nDate: ${result.date}\nRegion: ${result.region}\nPrizes Found: ${result.prizes.length}\n\n${result.prizes.map(p => `${p.tier}: ${p.numbers.join(', ')}`).join('\n')}`)
         return result
       }
     }
@@ -80,13 +93,19 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
         continue
       }
       
+      lastRetrievedHTML = html
+      lastRetrievedSource = `Proxy: ${proxy.type}`
+      alert(`✅ Proxy ${proxy.type} returned data!\n\nHTML Length: ${html.length} characters\n\nFirst 500 chars:\n${html.substring(0, 500)}...`)
+      
       const result = parseNorthernHTML(html, targetDate)
       
       if (result && result.prizes.length > 0) {
         console.log(`✅ Successfully fetched live results using ${proxy.type}`)
+        alert(`✅ Successfully parsed via ${proxy.type}!\n\nDate: ${result.date}\nRegion: ${result.region}\nPrizes Found: ${result.prizes.length}\n\n${result.prizes.map(p => `${p.tier}: ${p.numbers.join(', ')}`).join('\n')}`)
         return result
       } else {
         console.warn(`⚠️ Proxy ${proxy.type} returned HTML but parsing failed`)
+        alert(`⚠️ Proxy ${proxy.type} parsing failed\n\nHTML was received but no prizes could be extracted.`)
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -104,6 +123,41 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
   return null
 }
 
+// Helper function to format HTML with indentation
+function formatHTML(html: string): string {
+  let formatted = ''
+  let indent = 0
+  const tab = '  '
+  
+  // Remove extra whitespace and newlines
+  html = html.replace(/>\s+</g, '><').trim()
+  
+  // Split by tags
+  const tokens = html.split(/(<[^>]+>)/g).filter(token => token.trim())
+  
+  tokens.forEach(token => {
+    if (token.startsWith('</')) {
+      // Closing tag
+      indent--
+      formatted += tab.repeat(Math.max(0, indent)) + token + '\n'
+    } else if (token.startsWith('<') && !token.endsWith('/>') && !token.startsWith('<!')) {
+      // Opening tag
+      formatted += tab.repeat(indent) + token + '\n'
+      if (!token.match(/<(br|hr|img|input|meta|link|area|base|col|embed|param|source|track|wbr)[^>]*>/i)) {
+        indent++
+      }
+    } else if (token.startsWith('<') && token.endsWith('/>')) {
+      // Self-closing tag
+      formatted += tab.repeat(indent) + token + '\n'
+    } else if (token.trim()) {
+      // Text content
+      formatted += tab.repeat(indent) + token.trim() + '\n'
+    }
+  })
+  
+  return formatted.trim()
+}
+
 function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
   try {
     const parser = new DOMParser()
@@ -111,84 +165,59 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
     
     const prizes: Array<{ tier: string; numbers: string[] }> = []
     
-    const dateForId = format(date, 'ddMMyyyy')
-    const tableId = `kqngay_${dateForId}_kq`
+    // Look for table with class "table-result"
+    const table = doc.querySelector('table.table-result')
     
-    console.log(`🔍 Looking for table with id="${tableId}"`)
-    
-    const table = doc.getElementById(tableId)
+    console.log(`🔍 Looking for table.table-result`)
     
     if (table) {
-      console.log(`✅ Found table with id="${tableId}"`)
+      console.log(`✅ Found table.table-result`)
       
-      const prizeMapping = [
-        { tier: 'Special Prize', keywords: ['đặc biệt', 'db', 'giải đặc biệt', 'special'], count: 1, digits: 5, rowIndex: 1 },
-        { tier: 'First Prize', keywords: ['giải nhất', 'nhất', 'giải 1', 'first'], count: 1, digits: 5, rowIndex: null },
-        { tier: 'Second Prize', keywords: ['giải nhì', 'nhì', 'giải 2', 'second'], count: 2, digits: 5, rowIndex: null },
-        { tier: 'Third Prize', keywords: ['giải ba', 'ba', 'giải 3', 'third'], count: 6, digits: 5, rowIndex: null },
-        { tier: 'Fourth Prize', keywords: ['giải tư', 'tư', 'giải 4', 'fourth'], count: 4, digits: 4, rowIndex: null },
-        { tier: 'Fifth Prize', keywords: ['giải năm', 'năm', 'giải 5', 'fifth'], count: 6, digits: 4, rowIndex: null },
-        { tier: 'Sixth Prize', keywords: ['giải sáu', 'sáu', 'giải 6', 'sixth'], count: 3, digits: 3, rowIndex: null },
-        { tier: 'Seventh Prize', keywords: ['giải bảy', 'bảy', 'giải 7', 'seventh'], count: 4, digits: 2, rowIndex: null },
+      // Store the table HTML with pretty formatting
+      lastTableHTML = formatHTML(table.outerHTML)
+      
+      // Extract prizes from specific span elements
+      const prizeConfigs = [
+        { tier: 'Special Prize', className: 'special-prize', count: 1, digits: 5 },
+        { tier: 'First Prize', className: 'prize1', count: 1, digits: 5 },
+        { tier: 'Second Prize', className: 'prize2', count: 2, digits: 5 },
+        { tier: 'Third Prize', className: 'prize3', count: 6, digits: 5 },
+        { tier: 'Fourth Prize', className: 'prize4', count: 4, digits: 4 },
+        { tier: 'Fifth Prize', className: 'prize5', count: 6, digits: 4 },
+        { tier: 'Sixth Prize', className: 'prize6', count: 3, digits: 3 },
+        { tier: 'Seventh Prize', className: 'prize7', count: 4, digits: 2 },
       ]
       
-      const rows = table.querySelectorAll('tr')
-      
-      rows.forEach((row, index) => {
-        const cells = row.querySelectorAll('td, th')
-        if (cells.length < 2) return
+      prizeConfigs.forEach(config => {
+        const spans = doc.querySelectorAll(`span.${config.className}`)
+        const numbers: string[] = []
         
-        const labelCell = cells[0]
-        const labelText = labelCell.textContent?.toLowerCase().trim() || ''
+        spans.forEach(span => {
+          const text = span.textContent?.trim()
+          if (text && /^\d+$/.test(text)) {
+            const number = text.padStart(config.digits, '0').substring(0, config.digits)
+            numbers.push(number)
+            console.log(`✅ Found ${config.tier} from span.${config.className}: ${number}`)
+          }
+        })
         
-        for (const mapping of prizeMapping) {
-          if (mapping.rowIndex !== null && index !== mapping.rowIndex) {
-            continue
-          }
-          
-          const isMatch = mapping.keywords.some(keyword => labelText.includes(keyword))
-          
-          if (isMatch) {
-            const numbers: string[] = []
-            
-            if (mapping.tier === 'Special Prize' && index === 1) {
-              console.log(`🎯 Found Special Prize (DB) in row ${index}`)
-              console.log(`   Label: "${labelText}"`)
-            }
-            
-            for (let i = 1; i < cells.length; i++) {
-              const text = cells[i].textContent?.trim().replace(/\s+/g, '')
-              if (text && /^\d+$/.test(text) && text.length >= mapping.digits - 1 && text.length <= mapping.digits + 1) {
-                const number = text.padStart(mapping.digits, '0').substring(0, mapping.digits)
-                numbers.push(number)
-                
-                if (mapping.tier === 'Special Prize') {
-                  console.log(`   Number found: "${number}" (from "${text}")`)
-                }
-              }
-            }
-            
-            if (numbers.length > 0) {
-              const existingPrize = prizes.find(p => p.tier === mapping.tier)
-              if (existingPrize) {
-                existingPrize.numbers.push(...numbers)
-              } else {
-                prizes.push({
-                  tier: mapping.tier,
-                  numbers: numbers.slice(0, mapping.count),
-                })
-                
-                if (mapping.tier === 'Special Prize') {
-                  console.log(`   ✅ Added Special Prize: ${numbers[0]}`)
-                }
-              }
-            }
-          }
+        if (numbers.length > 0) {
+          prizes.push({
+            tier: config.tier,
+            numbers: numbers.slice(0, config.count)
+          })
+        } else {
+          // No prizes found for this tier, add "-" placeholders
+          prizes.push({
+            tier: config.tier,
+            numbers: Array(config.count).fill('-')
+          })
+          console.log(`⚠️ No ${config.tier} found, using placeholder "-"`)
         }
       })
       
       if (prizes.length > 0) {
-        console.log(`✅ Parsed ${prizes.length} prize tiers from table with ${prizes.reduce((sum, p) => sum + p.numbers.length, 0)} total numbers`)
+        console.log(`✅ Parsed ${prizes.length} prize tiers from spans with ${prizes.reduce((sum, p) => sum + p.numbers.filter(n => n !== '-').length, 0)} total numbers`)
         
         return {
           id: `north-${format(date, 'yyyy-MM-dd')}`,
@@ -199,55 +228,49 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
         }
       }
     } else {
-      console.log(`⚠️ Table with id="${tableId}" not found, trying fallback class-based parsing...`)
+      console.log(`⚠️ table.table-result not found, trying fallback parsing...`)
     }
     
-    const prizeMapping = [
-      { tier: 'Special Prize', classNames: ['giaidb', 'giai-db', 'special', 'db'], count: 1, digits: 5 },
-      { tier: 'First Prize', classNames: ['giai1', 'giai-1', 'first', 'g1'], count: 1, digits: 5 },
-      { tier: 'Second Prize', classNames: ['giai2', 'giai-2', 'second', 'g2'], count: 2, digits: 5 },
-      { tier: 'Third Prize', classNames: ['giai3', 'giai-3', 'third', 'g3'], count: 6, digits: 5 },
-      { tier: 'Fourth Prize', classNames: ['giai4', 'giai-4', 'fourth', 'g4'], count: 4, digits: 4 },
-      { tier: 'Fifth Prize', classNames: ['giai5', 'giai-5', 'fifth', 'g5'], count: 6, digits: 4 },
-      { tier: 'Sixth Prize', classNames: ['giai6', 'giai-6', 'sixth', 'g6'], count: 3, digits: 3 },
-      { tier: 'Seventh Prize', classNames: ['giai7', 'giai-7', 'seventh', 'g7'], count: 4, digits: 2 },
-    ]
-    
-    for (const mapping of prizeMapping) {
-      const numbers: string[] = []
+    // Fallback: Try to extract from span elements even without table
+    if (prizes.length === 0) {
+      const prizeConfigs = [
+        { tier: 'Special Prize', className: 'special-prize', count: 1, digits: 5 },
+        { tier: 'First Prize', className: 'prize1', count: 1, digits: 5 },
+        { tier: 'Second Prize', className: 'prize2', count: 2, digits: 5 },
+        { tier: 'Third Prize', className: 'prize3', count: 6, digits: 5 },
+        { tier: 'Fourth Prize', className: 'prize4', count: 4, digits: 4 },
+        { tier: 'Fifth Prize', className: 'prize5', count: 6, digits: 4 },
+        { tier: 'Sixth Prize', className: 'prize6', count: 3, digits: 3 },
+        { tier: 'Seventh Prize', className: 'prize7', count: 4, digits: 2 },
+      ]
       
-      let row: Element | null = null
-      for (const className of mapping.classNames) {
-        row = doc.querySelector(`.${className}`)
-        if (row) break
-      }
-      
-      if (row) {
-        const numberElements = row.querySelectorAll('td, div, span, p, b, strong')
+      prizeConfigs.forEach(config => {
+        const spans = doc.querySelectorAll(`span.${config.className}`)
+        const numbers: string[] = []
         
-        numberElements.forEach(el => {
-          const text = el.textContent?.trim().replace(/\s+/g, '')
-          if (text && /^\d+$/.test(text) && text.length >= mapping.digits - 1 && text.length <= mapping.digits) {
-            numbers.push(text.padStart(mapping.digits, '0'))
+        spans.forEach(span => {
+          const text = span.textContent?.trim()
+          if (text && /^\d+$/.test(text)) {
+            const number = text.padStart(config.digits, '0').substring(0, config.digits)
+            numbers.push(number)
+            console.log(`✅ Fallback: Found ${config.tier} from span.${config.className}: ${number}`)
           }
         })
-      }
-      
-      if (numbers.length === 0) {
-        const allText = doc.body.textContent || ''
-        const regex = new RegExp(`\\b\\d{${mapping.digits}}\\b`, 'g')
-        const matches = allText.match(regex)
-        if (matches && matches.length >= mapping.count) {
-          numbers.push(...matches.slice(0, mapping.count))
+        
+        if (numbers.length > 0) {
+          prizes.push({
+            tier: config.tier,
+            numbers: numbers.slice(0, config.count)
+          })
+        } else {
+          // No prizes found for this tier, add "-" placeholders
+          prizes.push({
+            tier: config.tier,
+            numbers: Array(config.count).fill('-')
+          })
+          console.log(`⚠️ Fallback: No ${config.tier} found, using placeholder "-"`)
         }
-      }
-      
-      if (numbers.length > 0) {
-        prizes.push({
-          tier: mapping.tier,
-          numbers: numbers.slice(0, mapping.count),
-        })
-      }
+      })
     }
     
     if (prizes.length === 0) {
@@ -256,7 +279,7 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
       return null
     }
     
-    console.log(`✅ Parsed ${prizes.length} prize tiers with ${prizes.reduce((sum, p) => sum + p.numbers.length, 0)} total numbers`)
+    console.log(`✅ Parsed ${prizes.length} prize tiers with ${prizes.reduce((sum, p) => sum + p.numbers.filter(n => n !== '-').length, 0)} total numbers`)
     
     return {
       id: `north-${format(date, 'yyyy-MM-dd')}`,
