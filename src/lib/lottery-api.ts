@@ -48,11 +48,12 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
       const html = await directResponse.text()
       lastRetrievedHTML = html
       lastRetrievedSource = 'Direct fetch'
-      alert(`✅ Direct fetch successful!\n\nHTML Length: ${html.length} characters\n\nFirst 500 chars:\n${html.substring(0, 500)}...`)
+      console.log(`✅ Direct fetch successful! HTML Length: ${html.length} characters`)
+      console.log('First 500 chars:', html.substring(0, 500))
       const result = parseNorthernHTML(html, targetDate)
       if (result && result.prizes.length > 0) {
         console.log('✅ Direct fetch successful!')
-        alert(`✅ Parsed Results:\n\nDate: ${result.date}\nRegion: ${result.region}\nPrizes Found: ${result.prizes.length}\n\n${result.prizes.map(p => `${p.tier}: ${p.numbers.join(', ')}`).join('\n')}`)
+        console.log(`Parsed Results - Date: ${result.date}, Region: ${result.region}, Prizes Found: ${result.prizes.length}`)
         return result
       }
     }
@@ -95,17 +96,19 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
       
       lastRetrievedHTML = html
       lastRetrievedSource = `Proxy: ${proxy.type}`
-      alert(`✅ Proxy ${proxy.type} returned data!\n\nHTML Length: ${html.length} characters\n\nFirst 500 chars:\n${html.substring(0, 500)}...`)
+      console.log(`✅ Proxy ${proxy.type} returned data! HTML Length: ${html.length} characters`)
+      console.log('First 500 chars:', html.substring(0, 500))
       
       const result = parseNorthernHTML(html, targetDate)
       
       if (result && result.prizes.length > 0) {
         console.log(`✅ Successfully fetched live results using ${proxy.type}`)
-        alert(`✅ Successfully parsed via ${proxy.type}!\n\nDate: ${result.date}\nRegion: ${result.region}\nPrizes Found: ${result.prizes.length}\n\n${result.prizes.map(p => `${p.tier}: ${p.numbers.join(', ')}`).join('\n')}`)
+        console.log(`Parsed via ${proxy.type} - Date: ${result.date}, Region: ${result.region}, Prizes Found: ${result.prizes.length}`)
+        result.prizes.forEach(p => console.log(`${p.tier}: ${p.numbers.join(', ')}`))
         return result
       } else {
         console.warn(`⚠️ Proxy ${proxy.type} returned HTML but parsing failed`)
-        alert(`⚠️ Proxy ${proxy.type} parsing failed\n\nHTML was received but no prizes could be extracted.`)
+        console.log('HTML was received but no prizes could be extracted.')
       }
     } catch (error) {
       if (error instanceof Error) {
