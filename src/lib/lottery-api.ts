@@ -122,19 +122,19 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
       console.log(`✅ Found table with id="${tableId}"`)
       
       const prizeMapping = [
-        { tier: 'Special Prize', keywords: ['đặc biệt', 'db', 'giải đặc biệt', 'special'], count: 1, digits: 5 },
-        { tier: 'First Prize', keywords: ['giải nhất', 'nhất', 'giải 1', 'first'], count: 1, digits: 5 },
-        { tier: 'Second Prize', keywords: ['giải nhì', 'nhì', 'giải 2', 'second'], count: 2, digits: 5 },
-        { tier: 'Third Prize', keywords: ['giải ba', 'ba', 'giải 3', 'third'], count: 6, digits: 5 },
-        { tier: 'Fourth Prize', keywords: ['giải tư', 'tư', 'giải 4', 'fourth'], count: 4, digits: 4 },
-        { tier: 'Fifth Prize', keywords: ['giải năm', 'năm', 'giải 5', 'fifth'], count: 6, digits: 4 },
-        { tier: 'Sixth Prize', keywords: ['giải sáu', 'sáu', 'giải 6', 'sixth'], count: 3, digits: 3 },
-        { tier: 'Seventh Prize', keywords: ['giải bảy', 'bảy', 'giải 7', 'seventh'], count: 4, digits: 2 },
+        { tier: 'Special Prize', keywords: ['đặc biệt', 'db', 'giải đặc biệt', 'special'], count: 1, digits: 5, rowIndex: 1 },
+        { tier: 'First Prize', keywords: ['giải nhất', 'nhất', 'giải 1', 'first'], count: 1, digits: 5, rowIndex: null },
+        { tier: 'Second Prize', keywords: ['giải nhì', 'nhì', 'giải 2', 'second'], count: 2, digits: 5, rowIndex: null },
+        { tier: 'Third Prize', keywords: ['giải ba', 'ba', 'giải 3', 'third'], count: 6, digits: 5, rowIndex: null },
+        { tier: 'Fourth Prize', keywords: ['giải tư', 'tư', 'giải 4', 'fourth'], count: 4, digits: 4, rowIndex: null },
+        { tier: 'Fifth Prize', keywords: ['giải năm', 'năm', 'giải 5', 'fifth'], count: 6, digits: 4, rowIndex: null },
+        { tier: 'Sixth Prize', keywords: ['giải sáu', 'sáu', 'giải 6', 'sixth'], count: 3, digits: 3, rowIndex: null },
+        { tier: 'Seventh Prize', keywords: ['giải bảy', 'bảy', 'giải 7', 'seventh'], count: 4, digits: 2, rowIndex: null },
       ]
       
       const rows = table.querySelectorAll('tr')
       
-      rows.forEach(row => {
+      rows.forEach((row, index) => {
         const cells = row.querySelectorAll('td, th')
         if (cells.length < 2) return
         
@@ -142,15 +142,29 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
         const labelText = labelCell.textContent?.toLowerCase().trim() || ''
         
         for (const mapping of prizeMapping) {
+          if (mapping.rowIndex !== null && index !== mapping.rowIndex) {
+            continue
+          }
+          
           const isMatch = mapping.keywords.some(keyword => labelText.includes(keyword))
           
           if (isMatch) {
             const numbers: string[] = []
             
+            if (mapping.tier === 'Special Prize' && index === 1) {
+              console.log(`🎯 Found Special Prize (DB) in row ${index}`)
+              console.log(`   Label: "${labelText}"`)
+            }
+            
             for (let i = 1; i < cells.length; i++) {
               const text = cells[i].textContent?.trim().replace(/\s+/g, '')
               if (text && /^\d+$/.test(text) && text.length >= mapping.digits - 1 && text.length <= mapping.digits + 1) {
-                numbers.push(text.padStart(mapping.digits, '0').substring(0, mapping.digits))
+                const number = text.padStart(mapping.digits, '0').substring(0, mapping.digits)
+                numbers.push(number)
+                
+                if (mapping.tier === 'Special Prize') {
+                  console.log(`   Number found: "${number}" (from "${text}")`)
+                }
               }
             }
             
@@ -163,6 +177,10 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
                   tier: mapping.tier,
                   numbers: numbers.slice(0, mapping.count),
                 })
+                
+                if (mapping.tier === 'Special Prize') {
+                  console.log(`   ✅ Added Special Prize: ${numbers[0]}`)
+                }
               }
             }
           }
