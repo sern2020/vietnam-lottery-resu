@@ -1,5 +1,6 @@
 import type { LotteryResult, Region } from './types'
 import { format } from 'date-fns'
+import { toast } from 'sonner'
 
 const CORS_PROXIES = [
   { url: 'https://corsproxy.io/?', type: 'corsproxy', timeout: 10000 },
@@ -16,6 +17,12 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
   const baseUrl = `https://xoso.com.vn/xsmb-${formattedDate}.html`
   
   console.log(`🎯 Fetching lottery results for ${formattedDate}`)
+  console.log(`🔗 Base URL: ${baseUrl}`)
+  
+  toast.info('Fetching from source', {
+    description: baseUrl,
+    duration: 4000,
+  })
   
   try {
     console.log('🔄 Attempting direct fetch (may fail due to CORS)...')
@@ -90,6 +97,10 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
   }
   
   console.warn('⚠️ All proxies exhausted - no valid data retrieved')
+  toast.error('All fetch methods failed', {
+    description: `Could not retrieve data from ${baseUrl}`,
+    duration: 5000,
+  })
   return null
 }
 
