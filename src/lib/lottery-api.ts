@@ -33,6 +33,32 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
     duration: 4000,
   })
   
+  return await fetchLotteryData(baseUrl, targetDate, 'north', 'table-result')
+}
+
+export async function fetchCentralResults(date?: Date): Promise<LotteryResult | null> {
+  const targetDate = date || new Date()
+  const formattedDate = format(targetDate, 'dd-MM-yyyy')
+  const baseUrl = `https://xoso.com.vn/xsmt-${formattedDate}.html`
+  
+  console.log(`🎯 Fetching Central lottery results for ${formattedDate}`)
+  console.log(`🔗 Base URL: ${baseUrl}`)
+  
+  toast.info('Fetching from source', {
+    description: baseUrl,
+    duration: 4000,
+  })
+  
+  return await fetchLotteryData(baseUrl, targetDate, 'central', 'table-result table-xsmn')
+}
+
+async function fetchLotteryData(
+  baseUrl: string, 
+  targetDate: Date, 
+  region: Region,
+  tableClass: string
+): Promise<LotteryResult | null> {
+  
   try {
     console.log('🔄 Attempting direct fetch (may fail due to CORS)...')
     const directResponse = await fetch(baseUrl, {
@@ -50,7 +76,7 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
       lastRetrievedSource = 'Direct fetch'
       console.log(`✅ Direct fetch successful! HTML Length: ${html.length} characters`)
       console.log('First 500 chars:', html.substring(0, 500))
-      const result = parseNorthernHTML(html, targetDate)
+      const result = parseHTML(html, targetDate, region, tableClass)
       if (result && result.prizes.length > 0) {
         console.log('✅ Direct fetch successful!')
         console.log(`Parsed Results - Date: ${result.date}, Region: ${result.region}, Prizes Found: ${result.prizes.length}`)
@@ -99,7 +125,7 @@ export async function fetchNorthernResults(date?: Date): Promise<LotteryResult |
       console.log(`✅ Proxy ${proxy.type} returned data! HTML Length: ${html.length} characters`)
       console.log('First 500 chars:', html.substring(0, 500))
       
-      const result = parseNorthernHTML(html, targetDate)
+      const result = parseHTML(html, targetDate, region, tableClass)
       
       if (result && result.prizes.length > 0) {
         console.log(`✅ Successfully fetched live results using ${proxy.type}`)
@@ -161,20 +187,20 @@ function formatHTML(html: string): string {
   return formatted.trim()
 }
 
-function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
+function parseHTML(html: string, date: Date, region: Region, tableClass: string): LotteryResult | null {
   try {
     const parser = new DOMParser()
     const doc = parser.parseFromString(html, 'text/html')
     
     const prizes: Array<{ tier: string; numbers: string[] }> = []
     
-    // Look for table with class "table-result"
-    const table = doc.querySelector('table.table-result')
+    // Look for table with the specified class
+    const table = doc.querySelector(`table.${tableClass.split(' ').join('.')}`)
     
-    console.log(`🔍 Looking for table.table-result`)
+    console.log(`🔍 Looking for table.${tableClass}`)
     
     if (table) {
-      console.log(`✅ Found table.table-result`)
+      console.log(`✅ Found table.${tableClass}`)
       
       // Store the table HTML with pretty formatting
       lastTableHTML = formatHTML(table.outerHTML)
@@ -223,15 +249,15 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
         console.log(`✅ Parsed ${prizes.length} prize tiers from spans with ${prizes.reduce((sum, p) => sum + p.numbers.filter(n => n !== '-').length, 0)} total numbers`)
         
         return {
-          id: `north-${format(date, 'yyyy-MM-dd')}`,
-          region: 'north',
+          id: `${region}-${format(date, 'yyyy-MM-dd')}`,
+          region: region,
           date: format(date, 'yyyy-MM-dd'),
           drawTime: '18:15',
           prizes,
         }
       }
     } else {
-      console.log(`⚠️ table.table-result not found, trying fallback parsing...`)
+      console.log(`⚠️ table.${tableClass} not found, trying fallback parsing...`)
     }
     
     // Fallback: Try to extract from span elements even without table
@@ -285,14 +311,14 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
     console.log(`✅ Parsed ${prizes.length} prize tiers with ${prizes.reduce((sum, p) => sum + p.numbers.filter(n => n !== '-').length, 0)} total numbers`)
     
     return {
-      id: `north-${format(date, 'yyyy-MM-dd')}`,
-      region: 'north',
+      id: `${region}-${format(date, 'yyyy-MM-dd')}`,
+      region: region,
       date: format(date, 'yyyy-MM-dd'),
       drawTime: '18:15',
       prizes,
     }
   } catch (error) {
-    console.error('❌ Error parsing Northern lottery HTML:', error)
+    console.error(`❌ Error parsing ${region} lottery HTML:`, error)
     return null
   }
 }
@@ -300,6 +326,10 @@ function parseNorthernHTML(html: string, date: Date): LotteryResult | null {
 export async function fetchLotteryResults(region: Region, date?: Date): Promise<LotteryResult | null> {
   if (region === 'north') {
     return await fetchNorthernResults(date)
+  }
+  
+  if (region === 'central') {
+    return await fetchCentralResults(date)
   }
   
   return null

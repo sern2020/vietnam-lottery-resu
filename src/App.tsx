@@ -121,9 +121,9 @@ function App() {
     const dateToFetch = searchDate || new Date()
     
     try {
-      if (activeRegion !== 'north') {
-        toast.info('ℹ️ Live data only available for Northern region', {
-          description: 'Central and Southern regions use demo data'
+      if (activeRegion === 'south') {
+        toast.info('ℹ️ Live data only available for Northern and Central regions', {
+          description: 'Southern region uses demo data'
         })
         const newResult = generateMockResult(activeRegion, dateToFetch)
         const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
@@ -232,8 +232,8 @@ function App() {
       return
     }
     
-    if (activeRegion !== 'north') {
-      toast.info('Live data only available for Northern region', {
+    if (activeRegion === 'south') {
+      toast.info('Live data only available for Northern and Central regions', {
         description: 'Generating demo data for this date'
       })
       const newResult = generateMockResult(activeRegion, date)
@@ -362,7 +362,7 @@ function App() {
               className="gap-2"
             >
               <ArrowClockwise size={18} className={isRefreshing ? 'animate-spin' : ''} />
-              {activeRegion === 'north' ? 'Fetch Live Results' : 'Refresh'}
+              {activeRegion === 'south' ? 'Refresh' : 'Fetch Live Results'}
             </Button>
           </div>
 
@@ -449,10 +449,10 @@ function App() {
         )}
 
         <footer className="mt-12 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-          <p className="font-medium">Northern results attempt live data via multiple CORS proxies</p>
+          <p className="font-medium">Northern & Central regions attempt live data via multiple CORS proxies</p>
           <p className="mt-2 text-xs">⚠️ Free CORS proxies may be rate-limited or blocked - demo data shown as fallback</p>
           <p className="mt-1 text-xs">💡 If live fetch fails, wait a few minutes and try again</p>
-          <p className="mt-2 text-xs">Central & Southern regions currently use demo data only</p>
+          <p className="mt-2 text-xs">Southern region currently uses demo data only</p>
           <p className="mt-2 text-xs opacity-75">Results are for reference only • Not affiliated with official lottery organizations</p>
         </footer>
       </div>
