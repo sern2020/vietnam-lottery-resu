@@ -134,15 +134,82 @@ export function ResultCard({ result, highlightNumbers = [], showSpecialPrizeAler
       </CardHeader>
       
       <CardContent className="space-y-4 pt-6">
-        {result.prizes.map((prize, index) => (
-          <PrizeDisplay
-            key={prize.tier}
-            prize={prize}
-            index={index}
-            isSpecial={index === 0}
-            highlightNumbers={highlightNumbers}
-          />
-        ))}
+        {result.region === 'central' && result.locations && result.locations.length > 0 ? (
+          // Central region: Display in table format
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b-2 border-border">
+                  <th className="px-4 py-3 text-left font-semibold text-foreground">Prize Tier</th>
+                  {result.locations.map((location, idx) => (
+                    <th key={idx} className="px-4 py-3 text-center font-semibold text-foreground">
+                      {location}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {result.prizes.filter(p => p.tier !== 'Locations').map((prize, rowIndex) => (
+                  <tr 
+                    key={prize.tier} 
+                    className={rowIndex % 2 === 0 ? 'bg-muted/30' : 'bg-card'}
+                  >
+                    <td className="border-r border-border px-4 py-3 font-medium text-foreground">
+                      {prize.tier}
+                    </td>
+                    {result.locations!.map((location, colIndex) => {
+                      // Each location might have multiple numbers for this tier
+                      // Calculate which numbers belong to this location
+                      const numbersPerLocation = prize.numbers.length / result.locations!.length
+                      const startIdx = colIndex * Math.ceil(numbersPerLocation)
+                      const endIdx = startIdx + Math.ceil(numbersPerLocation)
+                      const locationNumbers = prize.numbers.slice(startIdx, endIdx).filter(n => n !== '-')
+                      
+                      return (
+                        <td key={colIndex} className="px-4 py-3">
+                          <div className="flex flex-wrap justify-center gap-2">
+                            {locationNumbers.length > 0 ? locationNumbers.map((number, numIdx) => {
+                              const isHighlighted = highlightNumbers.some(h => number.includes(h) || number.endsWith(h))
+                              return (
+                                <span 
+                                  key={numIdx}
+                                  className={`inline-block rounded-md px-3 py-1 text-sm font-bold ${
+                                    isHighlighted 
+                                      ? 'bg-accent text-accent-foreground ring-2 ring-primary' 
+                                      : 'bg-muted text-foreground'
+                                  }`}
+                                >
+                                  {number}
+                                </span>
+                              )
+                            }) : (
+                              <span className="inline-block rounded-md px-3 py-1 text-sm font-bold bg-muted/50 text-muted-foreground">
+                                -
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          // Northern/Southern region: Display in card format
+          <>
+            {result.prizes.map((prize, index) => (
+              <PrizeDisplay
+                key={prize.tier}
+                prize={prize}
+                index={index}
+                isSpecial={index === 0}
+                highlightNumbers={highlightNumbers}
+              />
+            ))}
+          </>
+        )}
       </CardContent>
     </Card>
   )

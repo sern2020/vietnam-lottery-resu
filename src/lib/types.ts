@@ -12,6 +12,7 @@ export interface LotteryResult {
   date: string
   drawTime: string
   prizes: Prize[]
+  locations?: string[] // Optional: For Central region to store location names
 }
 
 export const REGIONS = {

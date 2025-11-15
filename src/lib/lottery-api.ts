@@ -205,7 +205,151 @@ function parseHTML(html: string, date: Date, region: Region, tableClass: string)
       // Store the table HTML with pretty formatting
       lastTableHTML = formatHTML(table.outerHTML)
       
-      // Extract prizes from specific span elements
+      // For Central region (table-result table-xsmn), parse from thead and tbody
+      if (region === 'central' && tableClass.includes('table-xsmn')) {
+        console.log('🔍 Parsing Central lottery from table structure (thead/tbody)')
+        
+        // First, read location/province names from <thead>
+        const thead = table.querySelector('thead')
+        const locations: string[] = []
+        
+        if (thead) {
+          const headerRow = thead.querySelector('tr')
+          if (headerRow) {
+            const headerCells = headerRow.querySelectorAll('th')
+            headerCells.forEach((th, index) => {
+              const headerText = th.textContent?.trim() || ''
+              if (headerText && index > 0) { // Skip first column (empty or "Giải")
+                locations.push(headerText)
+                console.log(`  📋 Location Column ${index}: ${headerText}`)
+              }
+            })
+          }
+        }
+        
+        // Initialize prize structure for each location
+        const locationPrizes: { [location: string]: { tier: string; numbers: string[] }[] } = {}
+        locations.forEach(loc => {
+          locationPrizes[loc] = []
+        })
+        
+        const tbody = table.querySelector('tbody')
+        if (tbody) {
+          const rows = tbody.querySelectorAll('tr')
+          console.log(`✅ Found ${rows.length} rows in tbody`)
+          
+          rows.forEach((row, rowIndex) => {
+            // Get prize tier name from <th> element in the row
+            const thElement = row.querySelector('th')
+            const tierName = thElement ? thElement.textContent?.trim() || '' : ''
+            
+            if (!tierName) {
+              console.log(`  ⚠️ No tier name found in row ${rowIndex}`)
+              return
+            }
+            
+            console.log(`  ✅ Processing tier: ${tierName}`)
+            
+            // Get all <td> cells - each corresponds to a location
+            const cells = row.querySelectorAll('td')
+            
+            cells.forEach((cell, cellIndex) => {
+              if (cellIndex >= locations.length) return
+              
+              const location = locations[cellIndex]
+              const numbers: string[] = []
+              
+              // Try to find span elements with prize classes
+              const prizeSpans = cell.querySelectorAll('span[class*="xs_prize"]')
+              if (prizeSpans.length > 0) {
+                prizeSpans.forEach(span => {
+                  const spanText = span.textContent?.trim()
+                  if (spanText && /^\d+$/.test(spanText)) {
+                    numbers.push(spanText)
+                    console.log(`  ✅ Found number in <td>[${cellIndex}] span.${span.className}: ${spanText}`)
+                  }
+                })
+              } else {
+                // Fallback: extract directly from cell text
+                const cellText = cell.textContent?.trim()
+                if (cellText && /^\d+$/.test(cellText)) {
+                  numbers.push(cellText)
+                  console.log(`  ✅ Found number in <td>[${cellIndex}]: ${cellText}`)
+                }
+              }
+              
+              // If we found numbers for this location and tier, add them
+              if (numbers.length > 0) {
+                // Find or create the tier entry for this location
+                let tierEntry = locationPrizes[location].find(p => p.tier === tierName)
+                if (!tierEntry) {
+                  tierEntry = { tier: tierName, numbers: [] }
+                  locationPrizes[location].push(tierEntry)
+                }
+                tierEntry.numbers.push(...numbers)
+                console.log(`    📍 ${location} - ${tierName}: ${numbers.join(', ')}`)
+              }
+            })
+          })
+          
+          // Return all locations data in a structured format
+          if (locations.length > 0) {
+            // Convert the locationPrizes structure to a table-like format
+            // Get all unique tier names in order
+            const allTiers: string[] = []
+            Object.values(locationPrizes).forEach(prizes => {
+              prizes.forEach(p => {
+                if (!allTiers.includes(p.tier)) {
+                  allTiers.push(p.tier)
+                }
+              })
+            })
+            
+            // Create prizes array with location-based organization
+            const tableData: Array<{ tier: string; numbers: string[] }> = []
+            
+            // Add a header row with location names
+            tableData.push({
+              tier: 'Locations',
+              numbers: locations
+            })
+            
+            // For each tier, create a row with numbers from each location
+            allTiers.forEach(tierName => {
+              const tierNumbers: string[] = []
+              locations.forEach(location => {
+                const locationPrize = locationPrizes[location].find(p => p.tier === tierName)
+                if (locationPrize && locationPrize.numbers.length > 0) {
+                  tierNumbers.push(...locationPrize.numbers)
+                } else {
+                  tierNumbers.push('-')
+                }
+              })
+              
+              tableData.push({
+                tier: tierName,
+                numbers: tierNumbers
+              })
+            })
+            
+            const totalNumbers = tableData.reduce((sum, p) => sum + p.numbers.filter(n => n !== '-' && n !== 'Locations').length, 0)
+            console.log(`✅ Parsed ${allTiers.length} prize tiers across ${locations.length} locations with ${totalNumbers} total numbers`)
+            
+            return {
+              id: `${region}-${format(date, 'yyyy-MM-dd')}`,
+              region: region,
+              date: format(date, 'yyyy-MM-dd'),
+              drawTime: '18:15',
+              prizes: tableData,
+              locations: locations, // Add locations metadata
+            }
+          }
+        } else {
+          console.log('⚠️ tbody not found in table, trying span-based parsing...')
+        }
+      }
+      
+      // For Northern region or fallback, extract prizes from specific span elements
       const prizeConfigs = [
         { tier: 'Special Prize', className: 'special-prize', count: 1, digits: 5 },
         { tier: 'First Prize', className: 'prize1', count: 1, digits: 5 },
