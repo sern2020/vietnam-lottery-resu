@@ -28,7 +28,6 @@ function App() {
   const [debugHTML, setDebugHTML] = useState('')
   const [debugSource, setDebugSource] = useState('')
   const [debugTableHTML, setDebugTableHTML] = useState('')
-  const [hasFetchedCentral, setHasFetchedCentral] = useState(false)
   
   const [northResults, setNorthResults] = useKV<LotteryResult[]>('lottery-north-results', [])
   const [centralResults, setCentralResults] = useKV<LotteryResult[]>('lottery-central-results', [])
@@ -73,7 +72,7 @@ function App() {
         }
       }
       if (!centralResults || centralResults.length === 0) {
-        setCentralResults([])
+        setCentralResults(generateHistoricalResults('central', 30))
       }
       if (!southResults || southResults.length === 0) {
         setSouthResults(generateHistoricalResults('south', 30))
@@ -172,43 +171,8 @@ function App() {
       } else {
         toast.warning('⚠️ Could not fetch live data - all proxies failed', {
           duration: 6000,
-          description: 'CORS proxies are rate-limited or blocked. Try again in a few moments.'
+          description: 'CORS proxies are rate-limited or blocked. Try again in a few moments, or use demo data.'
         })
-        // For Central region, don't generate demo data - show "no records" instead
-        if (activeRegion === 'central') {
-          // Clear the current results to show "no records found"
-          const dateKey = format(dateToFetch, 'yyyy-MM-dd')
-          const filteredResults = currentResults.filter(r => r.date !== dateKey)
-          setResultsForRegion(activeRegion, filteredResults)
-        } else {
-          // For Northern region, generate demo data as fallback
-          const newResult = generateMockResult(activeRegion, dateToFetch)
-          const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
-          let updatedResults: LotteryResult[]
-          
-          if (existingIndex >= 0) {
-            updatedResults = [...currentResults]
-            updatedResults[existingIndex] = newResult
-          } else {
-            updatedResults = [newResult, ...currentResults.slice(0, 29)]
-          }
-          
-          setResultsForRegion(activeRegion, updatedResults)
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error refreshing results:', error)
-      toast.dismiss('fetch-loading')
-      toast.error('Network error occurred', {
-        description: 'Check your connection.'
-      })
-      // For Central region, don't generate demo data - show "no records" instead
-      if (activeRegion === 'central') {
-        const dateKey = format(dateToFetch, 'yyyy-MM-dd')
-        const filteredResults = currentResults.filter(r => r.date !== dateKey)
-        setResultsForRegion(activeRegion, filteredResults)
-      } else {
-        // For Northern region, generate demo data as fallback
         const newResult = generateMockResult(activeRegion, dateToFetch)
         const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
         let updatedResults: LotteryResult[]
@@ -222,6 +186,24 @@ function App() {
         
         setResultsForRegion(activeRegion, updatedResults)
       }
+    } catch (error) {
+      console.error('❌ Error refreshing results:', error)
+      toast.dismiss('fetch-loading')
+      toast.error('Network error occurred', {
+        description: 'Check your connection. Showing demo data instead.'
+      })
+      const newResult = generateMockResult(activeRegion, dateToFetch)
+      const existingIndex = currentResults.findIndex(r => r.date === newResult.date)
+      let updatedResults: LotteryResult[]
+      
+      if (existingIndex >= 0) {
+        updatedResults = [...currentResults]
+        updatedResults[existingIndex] = newResult
+      } else {
+        updatedResults = [newResult, ...currentResults.slice(0, 29)]
+      }
+      
+      setResultsForRegion(activeRegion, updatedResults)
     } finally {
       setIsRefreshing(false)
     }
@@ -287,40 +269,8 @@ function App() {
         })
       } else {
         toast.warning('Could not fetch live data for this date', {
-          description: activeRegion === 'central' ? 'No data available' : 'Generating demo data instead'
+          description: 'Generating demo data instead'
         })
-        
-        // For Central region, don't generate demo data - show "no records" instead
-        if (activeRegion === 'central') {
-          const dateKey = format(date, 'yyyy-MM-dd')
-          const filteredResults = currentResults.filter(r => r.date !== dateKey)
-          setResultsForRegion(activeRegion, filteredResults)
-          setSelectedDate(date)
-        } else {
-          // For Northern region, generate demo data as fallback
-          const newResult = generateMockResult(activeRegion, date)
-          const updatedResults = [newResult, ...currentResults].sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-          )
-          setResultsForRegion(activeRegion, updatedResults)
-          setSelectedDate(date)
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching date results:', error)
-      toast.dismiss('date-fetch')
-      toast.error('Network error occurred', {
-        description: activeRegion === 'central' ? 'No data available' : 'Showing demo data for this date'
-      })
-      
-      // For Central region, don't generate demo data - show "no records" instead
-      if (activeRegion === 'central') {
-        const dateKey = format(date, 'yyyy-MM-dd')
-        const filteredResults = currentResults.filter(r => r.date !== dateKey)
-        setResultsForRegion(activeRegion, filteredResults)
-        setSelectedDate(date)
-      } else {
-        // For Northern region, generate demo data as fallback
         const newResult = generateMockResult(activeRegion, date)
         const updatedResults = [newResult, ...currentResults].sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -328,6 +278,18 @@ function App() {
         setResultsForRegion(activeRegion, updatedResults)
         setSelectedDate(date)
       }
+    } catch (error) {
+      console.error('Error fetching date results:', error)
+      toast.dismiss('date-fetch')
+      toast.error('Network error occurred', {
+        description: 'Showing demo data for this date'
+      })
+      const newResult = generateMockResult(activeRegion, date)
+      const updatedResults = [newResult, ...currentResults].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      )
+      setResultsForRegion(activeRegion, updatedResults)
+      setSelectedDate(date)
     } finally {
       setIsFetchingDate(false)
     }
@@ -377,51 +339,45 @@ function App() {
           setShowAlert(false)
           
           // Auto-fetch live results when switching to Central region
-          if (newRegion === 'central' && !hasFetchedCentral) {
-            console.log('🔄 Auto-fetching Central region live results...')
-            toast.loading('Fetching Central region live results...', { id: 'central-auto-fetch' })
-            setIsRefreshing(true)
-            setHasFetchedCentral(true)
+          if (newRegion === 'central') {
+            const currentCentralResults = centralResults || []
+            const todayDate = format(new Date(), 'yyyy-MM-dd')
+            const hasTodayResults = currentCentralResults.some(r => r.date === todayDate)
             
-            try {
-              const result = await fetchLotteryResults('central', new Date())
-              toast.dismiss('central-auto-fetch')
+            if (!hasTodayResults) {
+              console.log('🔄 Auto-fetching Central region live results...')
+              toast.loading('Fetching Central region live results...', { id: 'central-auto-fetch' })
+              setIsRefreshing(true)
               
-              if (result) {
-                const currentCentralResults = centralResults || []
-                const todayDate = format(new Date(), 'yyyy-MM-dd')
-                const existingIndex = currentCentralResults.findIndex(r => r.date === todayDate)
-                let updatedResults: LotteryResult[]
+              try {
+                const result = await fetchLotteryResults('central', new Date())
+                toast.dismiss('central-auto-fetch')
                 
-                if (existingIndex >= 0) {
-                  updatedResults = [...currentCentralResults]
-                  updatedResults[existingIndex] = result
+                if (result) {
+                  const updatedResults = [result, ...currentCentralResults.slice(0, 29)]
+                  setCentralResults(updatedResults)
+                  const { html, source, tableHTML } = getLastRetrievedHTML()
+                  setDebugHTML(html)
+                  setDebugSource(source)
+                  setDebugTableHTML(tableHTML)
+                  toast.success('✅ Central region live results loaded!', {
+                    description: `Updated results for ${format(new Date(), 'MMM dd, yyyy')}`
+                  })
                 } else {
-                  updatedResults = [result, ...currentCentralResults.slice(0, 29)]
+                  toast.warning('⚠️ Could not fetch Central live data', {
+                    duration: 6000,
+                    description: 'CORS proxies may be rate-limited. Using demo data.'
+                  })
                 }
-                
-                setCentralResults(updatedResults)
-                const { html, source, tableHTML } = getLastRetrievedHTML()
-                setDebugHTML(html)
-                setDebugSource(source)
-                setDebugTableHTML(tableHTML)
-                toast.success('✅ Central region live results loaded!', {
-                  description: `Updated results for ${format(new Date(), 'MMM dd, yyyy')}`
+              } catch (error) {
+                console.error('❌ Error auto-fetching Central results:', error)
+                toast.dismiss('central-auto-fetch')
+                toast.error('Network error occurred', {
+                  description: 'Using demo data for Central region.'
                 })
-              } else {
-                toast.warning('⚠️ Could not fetch Central live data', {
-                  duration: 6000,
-                  description: 'CORS proxies may be rate-limited. Using demo data.'
-                })
+              } finally {
+                setIsRefreshing(false)
               }
-            } catch (error) {
-              console.error('❌ Error auto-fetching Central results:', error)
-              toast.dismiss('central-auto-fetch')
-              toast.error('Network error occurred', {
-                description: 'Using demo data for Central region.'
-              })
-            } finally {
-              setIsRefreshing(false)
             }
           }
         }}>
@@ -481,12 +437,11 @@ function App() {
                     </div>
                     <p className="text-muted-foreground">Loading latest lottery results...</p>
                   </div>
-                ) : displayResult && displayResult.prizes.length > 0 ? (
+                ) : displayResult ? (
                   <ResultCard result={displayResult} highlightNumbers={searchNumber ? [searchNumber] : []} showSpecialPrizeAlert={showAlert} />
                 ) : (
                   <div className="rounded-lg border border-dashed border-border p-12 text-center">
-                    <p className="text-lg font-medium text-muted-foreground mb-2">No records found</p>
-                    <p className="text-sm text-muted-foreground">Could not retrieve data for this date. Try clicking "Fetch Live Results" to retry.</p>
+                    <p className="text-muted-foreground">No results available for this date</p>
                   </div>
                 )}
               </TabsContent>

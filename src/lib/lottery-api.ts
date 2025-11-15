@@ -305,6 +305,14 @@ function parseHTML(html: string, date: Date, region: Region, tableClass: string)
               })
             })
             
+            // Check if we have any actual prize data
+            const hasAnyPrizes = Object.values(locationPrizes).some(prizes => prizes.length > 0)
+            
+            if (!hasAnyPrizes || allTiers.length === 0) {
+              console.warn('⚠️ No prize data found for any location in Central region')
+              return null
+            }
+            
             // Create prizes array with location-based organization
             const tableData: Array<{ tier: string; numbers: string[] }> = []
             
@@ -333,6 +341,13 @@ function parseHTML(html: string, date: Date, region: Region, tableClass: string)
             })
             
             const totalNumbers = tableData.reduce((sum, p) => sum + p.numbers.filter(n => n !== '-' && n !== 'Locations').length, 0)
+            
+            // Final check: if all numbers are placeholders, return null
+            if (totalNumbers === 0) {
+              console.warn('⚠️ All prize numbers are placeholders - no valid data found')
+              return null
+            }
+            
             console.log(`✅ Parsed ${allTiers.length} prize tiers across ${locations.length} locations with ${totalNumbers} total numbers`)
             
             return {
